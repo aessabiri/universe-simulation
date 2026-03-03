@@ -2,10 +2,9 @@ import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
 
-export class BigBangStage extends Stage {
+export class PlasmaStage extends Stage {
   private particles: THREE.Points | null = null;
-  private particleCount = 10000;
-  private startTime: number = 0;
+  private particleCount = 15000;
 
   init() {
     const geometry = new THREE.BufferGeometry();
@@ -13,27 +12,27 @@ export class BigBangStage extends Stage {
     const colors = new Float32Array(this.particleCount * 3);
 
     for (let i = 0; i < this.particleCount; i++) {
-      positions[i * 3] = 0;
-      positions[i * 3 + 1] = 0;
-      positions[i * 3 + 2] = 0;
+      const i3 = i * 3;
+      positions[i3] = (Math.random() - 0.5) * 12;
+      positions[i3 + 1] = (Math.random() - 0.5) * 12;
+      positions[i3 + 2] = (Math.random() - 0.5) * 12;
 
       const color = new THREE.Color();
-      const r = Math.random();
-      if (r < 0.25) color.setHex(0xffaa33); // Orange
-      else if (r < 0.5) color.setHex(0xffcc66); // Yellow
-      else if (r < 0.75) color.setHex(0x66ccff); // Blue
-      else color.setHex(0xffffff); // White
+      const rand = Math.random();
+      if (rand < 0.33) color.setHex(0xff00ff);
+      else if (rand < 0.66) color.setHex(0x00ffff);
+      else color.setHex(0xffaa00);
 
-      colors[i * 3] = color.r;
-      colors[i * 3 + 1] = color.g;
-      colors[i * 3 + 2] = color.b;
+      colors[i3] = color.r;
+      colors[i3 + 1] = color.g;
+      colors[i3 + 2] = color.b;
     }
 
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     const material = new THREE.PointsMaterial({
-      size: 0.15,
+      size: 0.12,
       vertexColors: true,
       map: TextureUtils.createCircularParticleTexture(),
       blending: THREE.AdditiveBlending,
@@ -44,30 +43,29 @@ export class BigBangStage extends Stage {
 
     this.particles = new THREE.Points(geometry, material);
     this.scene.add(this.particles);
-    TextureUtils.addNebula(this.scene, 15);
-    this.startTime = performance.now();
+    TextureUtils.addNebula(this.scene, 20);
+    this.camera.position.z = 8;
   }
 
   update(time: number, delta: number) {
     if (!this.particles) return;
 
-    const elapsed = (time - this.startTime) * 0.001;
     const positions = this.particles.geometry.attributes.position.array as Float32Array;
+    const t = time * 0.002;
 
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
-      const angle1 = (i / this.particleCount) * Math.PI * 2;
-      const angle2 = Math.acos(2 * ((i * 1.5) % this.particleCount) / this.particleCount - 1);
-      const speed = (1 + Math.sin(i * 0.1)) * 3;
-      const r = elapsed * speed;
-
-      positions[i3] = r * Math.sin(angle2) * Math.cos(angle1);
-      positions[i3 + 1] = r * Math.sin(angle2) * Math.sin(angle1);
-      positions[i3 + 2] = r * Math.cos(angle2);
+      positions[i3] += Math.sin(t + i) * 0.03;
+      positions[i3 + 1] += Math.cos(t * 0.8 + i) * 0.03;
+      positions[i3 + 2] += Math.sin(t * 1.2 + i) * 0.03;
+      
+      if (Math.abs(positions[i3]) > 8) positions[i3] *= 0.95;
+      if (Math.abs(positions[i3+1]) > 8) positions[i3+1] *= 0.95;
+      if (Math.abs(positions[i3+2]) > 8) positions[i3+2] *= 0.95;
     }
 
     this.particles.geometry.attributes.position.needsUpdate = true;
-    this.camera.position.z = 10 + elapsed * 2;
+    this.particles.rotation.y += 0.003;
   }
 
   destroy() {
