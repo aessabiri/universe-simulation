@@ -3,73 +3,84 @@ import * as THREE from 'three';
 export class TextureUtils {
   static createCircularParticleTexture(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 128;
-    canvas.height = 128;
-    const context = canvas.getContext('2d')!;
-
-    const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64);
+    canvas.width = 128; canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
     gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
     gradient.addColorStop(0.2, 'rgba(255, 255, 255, 0.8)');
     gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.2)');
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
-
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 128, 128);
-
-    const texture = new THREE.CanvasTexture(canvas);
-    return texture;
+    gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+    return new THREE.CanvasTexture(canvas);
   }
 
   static createNebulaTexture(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
-    canvas.height = 256;
-    const context = canvas.getContext('2d')!;
-
-    const gradient = context.createRadialGradient(128, 128, 0, 128, 128, 128);
-    gradient.addColorStop(0, 'rgba(100, 50, 255, 0.2)');
-    gradient.addColorStop(0.5, 'rgba(50, 150, 255, 0.1)');
+    canvas.width = 256; canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
+    gradient.addColorStop(0.4, 'rgba(100, 150, 255, 0.15)');
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
-    context.fillStyle = gradient;
-    context.fillRect(0, 0, 256, 256);
-
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 256, 256);
     return new THREE.CanvasTexture(canvas);
   }
 
   static addNebula(scene: THREE.Scene, count: number = 20): void {
     const nebulaTexture = this.createNebulaTexture();
     const colors = [0x5511aa, 0x1122aa, 0x1166aa, 0x442266];
-    
     for (let i = 0; i < count; i++) {
       const material = new THREE.MeshBasicMaterial({
-        map: nebulaTexture,
-        transparent: true,
-        opacity: 0.15,
-        blending: THREE.AdditiveBlending,
-        depthWrite: false,
-        side: THREE.DoubleSide
+        map: nebulaTexture, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
       });
-      
       const size = 100 + Math.random() * 200;
-      const geometry = new THREE.PlaneGeometry(size, size);
-      const mesh = new THREE.Mesh(geometry, material);
-      
-      // Position far away
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
       const radius = 500 + Math.random() * 200;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.random() * Math.PI;
-      
-      mesh.position.set(
-        radius * Math.sin(phi) * Math.cos(theta),
-        radius * Math.sin(phi) * Math.sin(theta),
-        radius * Math.cos(phi)
-      );
-      
+      mesh.position.set(radius * Math.sin(phi) * Math.cos(theta), radius * Math.sin(phi) * Math.sin(theta), radius * Math.cos(phi));
       mesh.lookAt(0, 0, 0);
       mesh.material.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
       scene.add(mesh);
     }
+  }
+
+  static addCosmicBackground(scene: THREE.Scene, count: number = 40): void {
+    const nebulaTexture = this.createNebulaTexture();
+    const colors = [0x221144, 0x112244, 0x052233, 0x1a0522];
+    for (let i = 0; i < count; i++) {
+      const material = new THREE.MeshBasicMaterial({
+        map: nebulaTexture, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide
+      });
+      const size = 300 + Math.random() * 600;
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
+      const radius = 600 + Math.random() * 300;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.random() * Math.PI;
+      mesh.position.set(radius * Math.sin(phi) * Math.cos(theta), radius * Math.sin(phi) * Math.sin(theta), radius * Math.cos(phi));
+      mesh.lookAt(0, 0, 0);
+      mesh.material.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
+      scene.add(mesh);
+    }
+    const clusterCount = 1000;
+    const clusterGeo = new THREE.BufferGeometry();
+    const clusterPos = new Float32Array(clusterCount * 3);
+    const clusterCol = new Float32Array(clusterCount * 3);
+    for (let i = 0; i < clusterCount; i++) {
+      const radius = 500 + Math.random() * 400;
+      const theta = Math.random() * Math.PI * 2;
+      const phi = Math.acos(2 * Math.random() - 1);
+      clusterPos[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
+      clusterPos[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
+      clusterPos[i * 3 + 2] = radius * Math.cos(phi);
+      const color = new THREE.Color().setHSL(Math.random(), 0.3, 0.7);
+      clusterCol[i * 3] = color.r; clusterCol[i * 3 + 1] = color.g; clusterCol[i * 3 + 2] = color.b;
+    }
+    clusterGeo.setAttribute('position', new THREE.BufferAttribute(clusterPos, 3));
+    clusterGeo.setAttribute('color', new THREE.BufferAttribute(clusterCol, 3));
+    scene.add(new THREE.Points(clusterGeo, new THREE.PointsMaterial({ size: 1.5, vertexColors: true, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })));
   }
 
   static createFlareGhostTexture(): THREE.CanvasTexture {
@@ -77,8 +88,6 @@ export class TextureUtils {
     canvas.width = 128; canvas.height = 128;
     const ctx = canvas.getContext('2d')!;
     ctx.clearRect(0, 0, 128, 128);
-    
-    // Create a very soft hex for ghosting
     ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
     ctx.beginPath();
     for (let i = 0; i < 6; i++) {
@@ -89,7 +98,6 @@ export class TextureUtils {
     }
     ctx.closePath();
     ctx.fill();
-
     return new THREE.CanvasTexture(canvas);
   }
 
@@ -97,17 +105,14 @@ export class TextureUtils {
     const canvas = document.createElement('canvas');
     canvas.width = 512; canvas.height = 512;
     const ctx = canvas.getContext('2d')!;
-
     const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256);
     gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
     gradient.addColorStop(0.1, 'rgba(255, 255, 200, 0.8)');
     gradient.addColorStop(0.3, 'rgba(255, 180, 50, 0.4)');
     gradient.addColorStop(0.6, 'rgba(255, 80, 0, 0.1)');
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 512, 512);
-
     return new THREE.CanvasTexture(canvas);
   }
 }

@@ -6,6 +6,7 @@ import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPa
 import { Stage } from './Stage';
 import { BigBangStage } from './stages/BigBangStage';
 import { PlasmaStage } from './stages/PlasmaStage';
+import { StellarDawnStage } from './stages/StellarDawnStage';
 import { GalaxyStage } from './stages/GalaxyStage';
 import { SolarSystemStage } from './stages/SolarSystemStage';
 import { EarthStage } from './stages/EarthStage';
@@ -13,6 +14,7 @@ import { EarthStage } from './stages/EarthStage';
 export enum Epoch {
   BIG_BANG,
   PLASMA,
+  STELLAR_DAWN,
   GALAXY_FORMATION,
   SOLAR_SYSTEM,
   EARTH
@@ -72,6 +74,22 @@ export class SimulationManager {
   public setEpoch(epoch: Epoch) {
     if (this.currentStage) {
       this.currentStage.destroy();
+      
+      // Force GPU memory disposal for all un-destroyed objects
+      while(this.scene.children.length > 0){ 
+          const object = this.scene.children[0];
+          this.scene.remove(object);
+          if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.Sprite) {
+              if(object.geometry) object.geometry.dispose();
+              if(object.material) {
+                  if (Array.isArray(object.material)) {
+                      object.material.forEach(m => m.dispose());
+                  } else {
+                      object.material.dispose();
+                  }
+              }
+          }
+      }
       this.scene.clear();
     }
 
@@ -88,6 +106,11 @@ export class SimulationManager {
         this.controls.minDistance = 2;
         this.controls.maxDistance = 100;
         this.currentStage = new PlasmaStage(this.scene, this.camera, this.container);
+        break;
+      case Epoch.STELLAR_DAWN:
+        this.controls.minDistance = 1;   // Allow getting close to nebulas
+        this.controls.maxDistance = 120; // Keep the user inside the nebula volume
+        this.currentStage = new StellarDawnStage(this.scene, this.camera, this.container);
         break;
       case Epoch.GALAXY_FORMATION:
         this.controls.minDistance = 5;
@@ -121,9 +144,22 @@ export class SimulationManager {
   public animate(time: number) {
     if (this.currentStage) {
       this.currentStage.update(time, 0.016);
+      
+      const target = this.currentStage.getFocusTarget();
+      if (target) {
+        // Smoothly interpolate camera target towards the moving planet
+        this.controls.target.lerp(target, 0.1);
+      }
     }
     this.controls.update();
     this.composer.render();
     requestAnimationFrame((t) => this.animate(t));
+  }
+
+  // Helper for UI to trigger focus
+  public focusOnIndex(index: number | null) {
+    if (this.currentStage && 'setFocusIndex' in this.currentStage) {
+      (this.currentStage as any).setFocusIndex(index);
+    }
   }
 }

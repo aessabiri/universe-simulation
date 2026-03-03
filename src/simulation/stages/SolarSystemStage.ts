@@ -26,8 +26,11 @@ export class SolarSystemStage extends Stage {
   private planetMeshes: THREE.Group[] = [];
   private planetPivots: THREE.Group[] = [];
   private moonMeshes: { mesh: THREE.Mesh, pivot: THREE.Group, speed: number, distance: number }[] = [];
-  private asteroidBelt: THREE.Points | null = null;
-  private kuiperBelt: THREE.Points | null = null;
+  private asteroidBelt: THREE.InstancedMesh | null = null;
+  private kuiperBelt: THREE.InstancedMesh | null = null;
+  private dummy = new THREE.Object3D();
+  private focusIndex: number | null = null;
+  private targetVector = new THREE.Vector3();
 
   private planets: PlanetData[] = [
     { name: 'Mercury', radius: 0.3, distance: 15, speed: 1.6, color: 0x888888, tilt: 0 },
@@ -184,18 +187,45 @@ export class SolarSystemStage extends Stage {
     this.camera.lookAt(0, 0, 0);
   }
 
-  private createBelt(minR: number, maxR: number, count: number, size: number, color: number): THREE.Points {
-    const geo = new THREE.BufferGeometry();
-    const pos = new Float32Array(count * 3);
+  private createBelt(minR: number, maxR: number, count: number, size: number, color: number): THREE.InstancedMesh {
+    const geometry = new THREE.DodecahedronGeometry(size, 0); // Low-poly asteroid shape
+    const material = new THREE.MeshStandardMaterial({ 
+      color: color,
+      roughness: 0.9,
+      metalness: 0.1,
+      emissive: color,
+      emissiveIntensity: 0.05
+    });
+    
+    const mesh = new THREE.InstancedMesh(geometry, material, count);
+    
     for (let i = 0; i < count; i++) {
       const r = minR + Math.random() * (maxR - minR);
       const theta = Math.random() * Math.PI * 2;
-      pos[i * 3] = Math.cos(theta) * r;
-      pos[i * 3 + 1] = (Math.random() - 0.5) * 0.8;
-      pos[i * 3 + 2] = Math.sin(theta) * r;
+      
+      this.dummy.position.set(
+        Math.cos(theta) * r,
+        (Math.random() - 0.5) * (size * 10), // Belt thickness
+        Math.sin(theta) * r
+      );
+      
+      // Random rotation
+      this.dummy.rotation.set(
+        Math.random() * Math.PI,
+        Math.random() * Math.PI,
+        Math.random() * Math.PI
+      );
+      
+      // Random scale for variety
+      const scale = 0.5 + Math.random() * 1.5;
+      this.dummy.scale.set(scale, scale, scale);
+      
+      this.dummy.updateMatrix();
+      mesh.setMatrixAt(i, this.dummy.matrix);
     }
-    geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    return new THREE.Points(geo, new THREE.PointsMaterial({ size, color, transparent: true, opacity: 0.5 }));
+    
+    mesh.instanceMatrix.needsUpdate = true;
+    return mesh;
   }
 
   private createStars() {
@@ -225,8 +255,29 @@ export class SolarSystemStage extends Stage {
     this.moonMeshes.forEach(m => {
       m.pivot.rotation.y += m.speed * 0.01;
     });
-    if (this.asteroidBelt) this.asteroidBelt.rotation.y += 0.00008;
-    if (this.kuiperBelt) this.kuiperBelt.rotation.y += 0.00003;
+    if (this.asteroidBelt) {
+      this.asteroidBelt.rotation.y += 0.00008;
+    }
+    if (this.kuiperBelt) {
+      this.kuiperBelt.rotation.y += 0.00003;
+    }
+  }
+
+  public setFocusIndex(index: number | null) {
+    this.focusIndex = index;
+    if (index === null) {
+        this.targetVector.set(0,0,0); // Back to sun
+    }
+  }
+
+  public getFocusTarget(): THREE.Vector3 | null {
+    if (this.focusIndex !== null && this.planetMeshes[this.focusIndex]) {
+      // Get absolute world position of the planet
+      this.planetMeshes[this.focusIndex].children[0].getWorldPosition(this.targetVector);
+      return this.targetVector;
+    }
+    this.targetVector.set(0,0,0);
+    return this.targetVector; // Default to Sun center
   }
 
   destroy() {

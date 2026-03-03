@@ -195,6 +195,34 @@ export class EarthStage extends Stage {
     this.earth.rotation.y = Math.PI;
     this.scene.add(this.earth);
 
+    // ATMOSPHERIC SCATTERING (Fresnel Shader)
+    const vertexShader = `
+      varying vec3 vNormal;
+      void main() {
+        vNormal = normalize(normalMatrix * normal);
+        gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+      }
+    `;
+    const fragmentShader = `
+      varying vec3 vNormal;
+      void main() {
+        float intensity = pow(0.65 - dot(vNormal, vec3(0, 0, 1.0)), 4.0);
+        gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity;
+      }
+    `;
+    const atmosphere = new THREE.Mesh(
+      new THREE.SphereGeometry(2.1, 64, 64), // Slightly larger than Earth, smaller than clouds
+      new THREE.ShaderMaterial({
+        vertexShader,
+        fragmentShader,
+        blending: THREE.AdditiveBlending,
+        side: THREE.BackSide,
+        transparent: true,
+        depthWrite: false
+      })
+    );
+    this.earth.add(atmosphere);
+
     this.clouds = new THREE.Mesh(
       new THREE.SphereGeometry(2.03, 64, 64),
       new THREE.MeshStandardMaterial({

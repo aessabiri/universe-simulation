@@ -132,10 +132,10 @@ export class GalaxyStage extends Stage {
     }));
     this.galaxyGroup.add(this.dust);
 
-    // 5. DISTANT GALAXIES (The "Deep Field")
+    // 5. COSMIC BACKGROUND (Deep Field & Intergalactic Clusters)
     this.createDistantGalaxies();
+    TextureUtils.addCosmicBackground(this.scene, 50);
 
-    TextureUtils.addNebula(this.scene, 30);
     this.camera.position.set(0, 10, 15);
     this.camera.lookAt(0, 0, 0);
   }

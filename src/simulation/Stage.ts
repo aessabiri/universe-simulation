@@ -14,4 +14,8 @@ export abstract class Stage {
   abstract init(): void;
   abstract update(time: number, delta: number): void;
   abstract destroy(): void;
+
+  public getFocusTarget(): THREE.Vector3 | null {
+    return null; // Default to no specific focus target
+  }
 }
