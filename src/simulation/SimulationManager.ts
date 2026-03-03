@@ -80,18 +80,28 @@ export class SimulationManager {
     
     switch (epoch) {
       case Epoch.BIG_BANG:
+        this.controls.minDistance = 2;
+        this.controls.maxDistance = 100;
         this.currentStage = new BigBangStage(this.scene, this.camera, this.container);
         break;
       case Epoch.PLASMA:
+        this.controls.minDistance = 2;
+        this.controls.maxDistance = 100;
         this.currentStage = new PlasmaStage(this.scene, this.camera, this.container);
         break;
       case Epoch.GALAXY_FORMATION:
+        this.controls.minDistance = 5;
+        this.controls.maxDistance = 100; // Restrict zoom out to keep background distant
         this.currentStage = new GalaxyStage(this.scene, this.camera, this.container);
         break;
       case Epoch.SOLAR_SYSTEM:
+        this.controls.minDistance = 20; // Restrict zoom in
+        this.controls.maxDistance = 1000; // Allow more zoom out
         this.currentStage = new SolarSystemStage(this.scene, this.camera, this.container);
         break;
       case Epoch.EARTH:
+        this.controls.minDistance = 4;
+        this.controls.maxDistance = 100;
         this.currentStage = new EarthStage(this.scene, this.camera, this.container);
         break;
     }
