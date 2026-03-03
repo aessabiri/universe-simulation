@@ -10,6 +10,7 @@ import { StellarDawnStage } from './stages/StellarDawnStage';
 import { GalaxyStage } from './stages/GalaxyStage';
 import { SolarSystemStage } from './stages/SolarSystemStage';
 import { EarthStage } from './stages/EarthStage';
+import { AudioManager } from './AudioManager';
 
 export enum Epoch {
   BIG_BANG,
@@ -29,6 +30,7 @@ export class SimulationManager {
   private currentStage: Stage | null = null;
   private epoch: Epoch = Epoch.BIG_BANG;
   private container: HTMLElement;
+  private audio = new AudioManager();
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -39,7 +41,7 @@ export class SimulationManager {
     this.camera.position.set(0, 5, 10);
 
     this.renderer = new THREE.WebGLRenderer({ 
-      antialias: false, // Turn off native antialiasing for postprocessing
+      antialias: false,
       powerPreference: "high-performance" 
     });
     this.renderer.setSize(window.innerWidth, window.innerHeight);
@@ -47,13 +49,10 @@ export class SimulationManager {
     this.renderer.toneMapping = THREE.ReinhardToneMapping;
     this.container.appendChild(this.renderer.domElement);
 
-    // Post-processing
     const renderScene = new RenderPass(this.scene, this.camera);
     const bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      1.5,  // strength
-      0.4,  // radius
-      0.85  // threshold
+      1.5, 0.4, 0.85
     );
 
     this.composer = new EffectComposer(this.renderer);
@@ -63,19 +62,19 @@ export class SimulationManager {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = 0.05;
-    this.controls.minDistance = 4;   // Don't go inside Earth
-    this.controls.maxDistance = 50;  // Stay within Earth/Moon system
 
     window.addEventListener('resize', () => this.onWindowResize());
     
     this.setEpoch(Epoch.BIG_BANG);
   }
 
+  public initAudio() {
+    this.audio.init();
+  }
+
   public setEpoch(epoch: Epoch) {
     if (this.currentStage) {
       this.currentStage.destroy();
-      
-      // Force GPU memory disposal for all un-destroyed objects
       while(this.scene.children.length > 0){ 
           const object = this.scene.children[0];
           this.scene.remove(object);
@@ -108,18 +107,18 @@ export class SimulationManager {
         this.currentStage = new PlasmaStage(this.scene, this.camera, this.container);
         break;
       case Epoch.STELLAR_DAWN:
-        this.controls.minDistance = 1;   // Allow getting close to nebulas
-        this.controls.maxDistance = 120; // Keep the user inside the nebula volume
+        this.controls.minDistance = 1;
+        this.controls.maxDistance = 120;
         this.currentStage = new StellarDawnStage(this.scene, this.camera, this.container);
         break;
       case Epoch.GALAXY_FORMATION:
         this.controls.minDistance = 5;
-        this.controls.maxDistance = 100; // Restrict zoom out to keep background distant
+        this.controls.maxDistance = 100;
         this.currentStage = new GalaxyStage(this.scene, this.camera, this.container);
         break;
       case Epoch.SOLAR_SYSTEM:
-        this.controls.minDistance = 20; // Restrict zoom in
-        this.controls.maxDistance = 1000; // Allow more zoom out
+        this.controls.minDistance = 20;
+        this.controls.maxDistance = 1000;
         this.currentStage = new SolarSystemStage(this.scene, this.camera, this.container);
         break;
       case Epoch.EARTH:
@@ -144,19 +143,20 @@ export class SimulationManager {
   public animate(time: number) {
     if (this.currentStage) {
       this.currentStage.update(time, 0.016);
-      
       const target = this.currentStage.getFocusTarget();
       if (target) {
-        // Smoothly interpolate camera target towards the moving planet
         this.controls.target.lerp(target, 0.1);
       }
     }
     this.controls.update();
     this.composer.render();
+    
+    // Update audio intensity based on epoch
+    this.audio.setIntensity(this.epoch / 6.0);
+
     requestAnimationFrame((t) => this.animate(t));
   }
 
-  // Helper for UI to trigger focus
   public focusOnIndex(index: number | null) {
     if (this.currentStage && 'setFocusIndex' in this.currentStage) {
       (this.currentStage as any).setFocusIndex(index);

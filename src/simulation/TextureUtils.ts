@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { StarVertexShader, StarFragmentShader } from './shaders/StarShaders';
 
 export class TextureUtils {
   static createCircularParticleTexture(): THREE.CanvasTexture {
@@ -12,7 +13,8 @@ export class TextureUtils {
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 128, 128);
-    return new THREE.CanvasTexture(canvas);
+    const tex = new THREE.CanvasTexture(canvas);
+    return tex;
   }
 
   static createNebulaTexture(): THREE.CanvasTexture {
@@ -28,23 +30,19 @@ export class TextureUtils {
     return new THREE.CanvasTexture(canvas);
   }
 
-  static addNebula(scene: THREE.Scene, count: number = 20): void {
-    const nebulaTexture = this.createNebulaTexture();
-    const colors = [0x5511aa, 0x1122aa, 0x1166aa, 0x442266];
-    for (let i = 0; i < count; i++) {
-      const material = new THREE.MeshBasicMaterial({
-        map: nebulaTexture, transparent: true, opacity: 0.15, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide
-      });
-      const size = 100 + Math.random() * 200;
-      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
-      const radius = 500 + Math.random() * 200;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.random() * Math.PI;
-      mesh.position.set(radius * Math.sin(phi) * Math.cos(theta), radius * Math.sin(phi) * Math.sin(theta), radius * Math.cos(phi));
-      mesh.lookAt(0, 0, 0);
-      mesh.material.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
-      scene.add(mesh);
-    }
+  static createStarShaderMaterial(time: { value: number }): THREE.ShaderMaterial {
+    return new THREE.ShaderMaterial({
+      uniforms: {
+        time: time,
+        pointTexture: { value: this.createCircularParticleTexture() }
+      },
+      vertexShader: StarVertexShader,
+      fragmentShader: StarFragmentShader,
+      vertexColors: true,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
   }
 
   static addCosmicBackground(scene: THREE.Scene, count: number = 40): void {
@@ -64,6 +62,8 @@ export class TextureUtils {
       mesh.material.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
       scene.add(mesh);
     }
+    
+    // Distant Galaxy Clusters
     const clusterCount = 1000;
     const clusterGeo = new THREE.BufferGeometry();
     const clusterPos = new Float32Array(clusterCount * 3);
@@ -83,6 +83,7 @@ export class TextureUtils {
     scene.add(new THREE.Points(clusterGeo, new THREE.PointsMaterial({ size: 1.5, vertexColors: true, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })));
   }
 
+  // Common Flare and Sun Textures
   static createFlareGhostTexture(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
     canvas.width = 128; canvas.height = 128;
