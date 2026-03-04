@@ -1,180 +1,168 @@
 import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
+import { GalaxyVertexShader, GalaxyFragmentShader } from '../shaders/GalaxyShaders';
 
 export class GalaxyStage extends Stage {
   private galaxyGroup: THREE.Group = new THREE.Group();
   private stars: THREE.Points | null = null;
-  private core: THREE.Points | null = null;
-  private nebulae: THREE.Points | null = null;
+  private bulge: THREE.Points | null = null;
   private dust: THREE.Points | null = null;
+  private nebulae: THREE.Points | null = null;
   private timeUniform = { value: 0 };
 
   init() {
     this.scene.add(this.galaxyGroup);
 
-    const parameters = {
-      radius: 12,
+    const config = {
+      radius: 25,
       branches: 3,
-      spin: 1.5, // Increased spin
-      randomness: 0.15, // Reduced randomness for tighter arms
-      randomnessPower: 4,
+      spin: 3.0, // Increased from 1.8 for tighter spiral
+      randomness: 0.08, // Reduced from 0.15 for more defined arms
+      randomnessPower: 5.0, // Increased power for sharper concentration
+      coreRadius: 4
     };
 
-    // 1. MAIN STAR POPULATION (Shader-based)
-    const starCount = 25000;
+    // 1. DISK STARS (40,000 Particles)
+    const starCount = 45000;
     const starGeo = new THREE.BufferGeometry();
     const starPos = new Float32Array(starCount * 3);
     const starCol = new Float32Array(starCount * 3);
     const starSiz = new Float32Array(starCount);
+    const starProx = new Float32Array(starCount);
 
-    const colorInside = new THREE.Color('#ffcc88');
-    const colorOutside = new THREE.Color('#88aaff');
+    const innerCol = new THREE.Color('#ffcc88'); // Warm
+    const outerCol = new THREE.Color('#88ccff'); // Hot blue
 
     for (let i = 0; i < starCount; i++) {
       const i3 = i * 3;
-      const radius = Math.random() * parameters.radius;
-      const spinAngle = radius * parameters.spin;
-      const branchAngle = ((i % parameters.branches) / parameters.branches) * Math.PI * 2;
-      const verticalDispersion = (Math.random() - 0.5) * (0.5 / (radius + 1)); 
-      const randomX = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
-      const randomZ = Math.pow(Math.random(), parameters.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * parameters.randomness * radius;
+      const radius = Math.random() * config.radius;
+      const spinAngle = radius * config.spin;
+      const branchAngle = ((i % config.branches) / config.branches) * Math.PI * 2;
+
+      // Density wave math: concentrating stars near the arm centers
+      const randomX = Math.pow(Math.random(), config.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * config.randomness * radius;
+      const randomZ = Math.pow(Math.random(), config.randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * config.randomness * radius;
+      const verticalDisp = (Math.random() - 0.5) * (0.8 / (radius + 1.0));
 
       starPos[i3] = Math.cos(branchAngle + spinAngle) * radius + randomX;
-      starPos[i3 + 1] = verticalDispersion;
+      starPos[i3 + 1] = verticalDisp;
       starPos[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + randomZ;
 
-      const mixedColor = colorInside.clone().lerp(colorOutside, radius / parameters.radius);
-      starCol[i3] = mixedColor.r; starCol[i3 + 1] = mixedColor.g; starCol[i3 + 2] = mixedColor.b;
-      starSiz[i] = 0.5 + Math.random() * 1.5;
+      // Color population mapping
+      const mixed = innerCol.clone().lerp(outerCol, radius / config.radius);
+      starCol[i3] = mixed.r; starCol[i3+1] = mixed.g; starCol[i3+2] = mixed.b;
+      
+      starSiz[i] = 0.4 + Math.random() * 1.2;
+      starProx[i] = 1.0 - (Math.abs(randomX) + Math.abs(randomZ)) / (config.randomness * radius);
     }
+
     starGeo.setAttribute('position', new THREE.BufferAttribute(starPos, 3));
     starGeo.setAttribute('color', new THREE.BufferAttribute(starCol, 3));
     starGeo.setAttribute('size', new THREE.BufferAttribute(starSiz, 1));
+    starGeo.setAttribute('armProximity', new THREE.BufferAttribute(starProx, 1));
 
-    this.stars = new THREE.Points(starGeo, TextureUtils.createStarShaderMaterial(this.timeUniform));
+    this.stars = new THREE.Points(starGeo, new THREE.ShaderMaterial({
+      uniforms: { time: this.timeUniform, pointTexture: { value: TextureUtils.createCircularParticleTexture() } },
+      vertexShader: GalaxyVertexShader,
+      fragmentShader: GalaxyFragmentShader,
+      vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+    }));
     this.galaxyGroup.add(this.stars);
 
-    // 2. GALACTIC CORE (Shader-based)
-    const coreCount = 8000;
+    // 2. GALACTIC BULGE (Dense, spherical heart)
+    const coreCount = 12000;
     const coreGeo = new THREE.BufferGeometry();
     const corePos = new Float32Array(coreCount * 3);
     const coreCol = new Float32Array(coreCount * 3);
     const coreSiz = new Float32Array(coreCount);
     for (let i = 0; i < coreCount; i++) {
       const i3 = i * 3;
-      const r = Math.random() * 2;
+      const r = Math.pow(Math.random(), 2.0) * config.coreRadius;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       corePos[i3] = r * Math.sin(phi) * Math.cos(theta);
-      corePos[i3 + 1] = r * Math.sin(phi) * Math.sin(theta) * 0.6;
-      corePos[i3 + 2] = r * Math.cos(phi);
-      const c = new THREE.Color('#fff0aa').lerp(new THREE.Color('#ffaa44'), Math.random());
+      corePos[i3+1] = r * Math.sin(phi) * Math.sin(theta) * 0.6;
+      corePos[i3+2] = r * Math.cos(phi);
+      const c = new THREE.Color('#fff4bb').lerp(new THREE.Color('#ffaa44'), Math.random());
       coreCol[i3] = c.r; coreCol[i3+1] = c.g; coreCol[i3+2] = c.b;
-      coreSiz[i] = 1.0 + Math.random();
+      coreSiz[i] = 0.8 + Math.random() * 1.5;
     }
     coreGeo.setAttribute('position', new THREE.BufferAttribute(corePos, 3));
     coreGeo.setAttribute('color', new THREE.BufferAttribute(coreCol, 3));
     coreGeo.setAttribute('size', new THREE.BufferAttribute(coreSiz, 1));
-    this.core = new THREE.Points(coreGeo, TextureUtils.createStarShaderMaterial(this.timeUniform));
-    this.galaxyGroup.add(this.core);
+    this.bulge = new THREE.Points(coreGeo, new THREE.ShaderMaterial({
+      uniforms: { time: this.timeUniform, pointTexture: { value: TextureUtils.createCircularParticleTexture() } },
+      vertexShader: GalaxyVertexShader,
+      fragmentShader: GalaxyFragmentShader,
+      vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false
+    }));
+    this.galaxyGroup.add(this.bulge);
 
-    // 3. NEBULAE & DUST (Basic materials)
-    const nurseryCount = 1000;
+    // 3. DARK DUST SCAFOLDING
+    const dustCount = 15000;
+    const dustGeo = new THREE.BufferGeometry();
+    const dustPos = new Float32Array(dustCount * 3);
+    for (let i = 0; i < dustCount; i++) {
+      const i3 = i * 3;
+      const radius = Math.random() * config.radius;
+      const spinAngle = radius * config.spin + 0.4; // Offset to inside of arms
+      const branchAngle = ((i % config.branches) / config.branches) * Math.PI * 2;
+      const rX = Math.pow(Math.random(), 3.0) * (Math.random() < 0.5 ? 1 : -1) * config.randomness * radius;
+      const rZ = Math.pow(Math.random(), 3.0) * (Math.random() < 0.5 ? 1 : -1) * config.randomness * radius;
+      dustPos[i3] = Math.cos(branchAngle + spinAngle) * radius + rX;
+      dustPos[i3+1] = (Math.random()-0.5) * 0.2;
+      dustPos[i3+2] = Math.sin(branchAngle + spinAngle) * radius + rZ;
+    }
+    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
+    this.dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
+      size: 0.12, color: '#0a0502', transparent: true, opacity: 0.4, depthWrite: false
+    }));
+    this.galaxyGroup.add(this.dust);
+
+    // 4. STAR NURSERIES (Pink/Magenta pockets)
+    const nurseryCount = 800;
     const nurseryGeo = new THREE.BufferGeometry();
     const nurseryPos = new Float32Array(nurseryCount * 3);
     const nurseryCol = new Float32Array(nurseryCount * 3);
     for (let i = 0; i < nurseryCount; i++) {
       const i3 = i * 3;
-      const radius = 2 + Math.random() * (parameters.radius - 2);
-      const spinAngle = radius * parameters.spin;
-      const branchAngle = ((i % parameters.branches) / parameters.branches) * Math.PI * 2;
-      nurseryPos[i3] = Math.cos(branchAngle + spinAngle) * radius + (Math.random()-0.5)*0.5;
-      nurseryPos[i3 + 1] = (Math.random()-0.5)*0.1;
-      nurseryPos[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + (Math.random()-0.5)*0.5;
-      const color = Math.random() > 0.5 ? new THREE.Color('#ff44aa') : new THREE.Color('#44aaff');
-      nurseryCol[i3] = color.r; nurseryCol[i3+1] = color.g; nurseryCol[i3+2] = color.b;
+      const radius = 5 + Math.random() * (config.radius - 5);
+      const spinAngle = radius * config.spin;
+      const branchAngle = ((i % config.branches) / config.branches) * Math.PI * 2;
+      nurseryPos[i3] = Math.cos(branchAngle + spinAngle) * radius + (Math.random()-0.5)*1.5;
+      nurseryPos[i3+1] = (Math.random()-0.5)*0.2;
+      nurseryPos[i3+2] = Math.sin(branchAngle + spinAngle) * radius + (Math.random()-0.5)*1.5;
+      const c = new THREE.Color('#ff4488').lerp(new THREE.Color('#ff00ff'), Math.random());
+      nurseryCol[i3] = c.r; nurseryCol[i3+1] = c.g; nurseryCol[i3+2] = c.b;
     }
     nurseryGeo.setAttribute('position', new THREE.BufferAttribute(nurseryPos, 3));
     nurseryGeo.setAttribute('color', new THREE.BufferAttribute(nurseryCol, 3));
     this.nebulae = new THREE.Points(nurseryGeo, new THREE.PointsMaterial({
-      size: 0.2, vertexColors: true, map: TextureUtils.createCircularParticleTexture(),
-      transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending, depthWrite: false
+      size: 0.25, vertexColors: true, map: TextureUtils.createCircularParticleTexture(),
+      transparent: true, opacity: 0.6, blending: THREE.AdditiveBlending, depthWrite: false
     }));
     this.galaxyGroup.add(this.nebulae);
 
-    const dustCount = 10000;
-    const dustGeo = new THREE.BufferGeometry();
-    const dustPos = new Float32Array(dustCount * 3);
-    for (let i = 0; i < dustCount; i++) {
-      const i3 = i * 3;
-      const radius = 2 + Math.random() * (parameters.radius - 1);
-      const spinAngle = radius * parameters.spin + 0.3;
-      const branchAngle = ((i % parameters.branches) / parameters.branches) * Math.PI * 2;
-      dustPos[i3] = Math.cos(branchAngle + spinAngle) * radius + (Math.random()-0.5)*0.4;
-      dustPos[i3 + 1] = (Math.random()-0.5)*0.05;
-      dustPos[i3 + 2] = Math.sin(branchAngle + spinAngle) * radius + (Math.random()-0.5)*0.4;
-    }
-    dustGeo.setAttribute('position', new THREE.BufferAttribute(dustPos, 3));
-    this.dust = new THREE.Points(dustGeo, new THREE.PointsMaterial({
-      size: 0.15, color: '#110a05', transparent: true, opacity: 0.4, depthWrite: false
-    }));
-    this.galaxyGroup.add(this.dust);
+    // 5. SUPERMASSIVE SINGULARITY
+    const coreGlow = new THREE.Mesh(
+        new THREE.SphereGeometry(0.4, 32, 32),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.9 })
+    );
+    this.galaxyGroup.add(coreGlow);
 
-    this.createDistantGalaxies();
-    TextureUtils.addCosmicBackground(this.scene, 50);
-
-    this.camera.position.set(0, 10, 15);
+    TextureUtils.addCosmicBackground(this.scene, 60);
+    this.camera.position.set(0, 20, 30);
     this.camera.lookAt(0, 0, 0);
   }
 
-  private createDistantGalaxies() {
-    const distantCount = 50;
-    for (let i = 0; i < distantCount; i++) {
-      const radius = 200 + Math.random() * 300;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const posX = radius * Math.sin(phi) * Math.cos(theta);
-      const posY = radius * Math.sin(phi) * Math.sin(theta);
-      const posZ = radius * Math.cos(phi);
-
-      const miniGeo = new THREE.BufferGeometry();
-      const miniCount = 400;
-      const miniPos = new Float32Array(miniCount * 3);
-      const miniCol = new Float32Array(miniCount * 3);
-      const miniSiz = new Float32Array(miniCount);
-      const miniSize = 2 + Math.random() * 5;
-      const miniColor = new THREE.Color().setHSL(Math.random(), 0.5, 0.7);
-
-      for (let j = 0; j < miniCount; j++) {
-        const j3 = j * 3;
-        const r = Math.random() * miniSize;
-        const angle = r * 1.5 + (j % 2) * Math.PI;
-        miniPos[j3] = Math.cos(angle) * r;
-        miniPos[j3 + 1] = (Math.random()-0.5) * 0.1;
-        miniPos[j3 + 2] = Math.sin(angle) * r;
-        miniCol[j3] = miniColor.r; miniCol[j3+1] = miniColor.g; miniCol[j3+2] = miniColor.b;
-        miniSiz[j] = 0.5;
-      }
-      miniGeo.setAttribute('position', new THREE.BufferAttribute(miniPos, 3));
-      miniGeo.setAttribute('color', new THREE.BufferAttribute(miniCol, 3));
-      miniGeo.setAttribute('size', new THREE.BufferAttribute(miniSiz, 1));
-      
-      const miniPoints = new THREE.Points(miniGeo, TextureUtils.createStarShaderMaterial(this.timeUniform));
-      miniPoints.position.set(posX, posY, posZ);
-      miniPoints.lookAt(0, 0, 0);
-      this.scene.add(miniPoints);
-    }
-  }
-
   update(time: number, delta: number) {
-    this.timeUniform.value = time * 0.001;
+    const t = time * 0.001;
+    this.timeUniform.value = t;
     if (this.galaxyGroup) {
-      this.galaxyGroup.rotation.y += 0.0005;
+      this.galaxyGroup.rotation.y = t * 0.05; // Slow majestic rotation
     }
   }
 
-  destroy() {
-    this.scene.clear();
-  }
+  destroy() { this.scene.clear(); }
 }

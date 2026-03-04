@@ -76,10 +76,13 @@ export class SimulationManager {
   public setEpoch(epoch: Epoch) {
     if (this.currentStage) {
       this.currentStage.destroy();
+      
+      // DEEP CLEAN: Remove everything and reset background
+      this.scene.background = new THREE.Color(0x000000);
       while(this.scene.children.length > 0){ 
           const object = this.scene.children[0];
           this.scene.remove(object);
-          if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.Sprite) {
+          if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.Sprite || object instanceof THREE.LineSegments) {
               if(object.geometry) object.geometry.dispose();
               if(object.material) {
                   if (Array.isArray(object.material)) {
