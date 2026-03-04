@@ -116,4 +116,23 @@ export class TextureUtils {
     ctx.fillRect(0, 0, 512, 512);
     return new THREE.CanvasTexture(canvas);
   }
+
+  static createSmearedTexture(): THREE.CanvasTexture {
+    const canvas = document.createElement('canvas');
+    canvas.width = 256; canvas.height = 256;
+    const ctx = canvas.getContext('2d')!;
+    ctx.clearRect(0, 0, 256, 256);
+    const grad = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
+    grad.addColorStop(0, 'rgba(255, 255, 255, 0.6)');
+    grad.addColorStop(0.3, 'rgba(255, 255, 255, 0.2)');
+    grad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+    ctx.fillStyle = grad;
+    ctx.translate(128, 128);
+    ctx.rotate(0.5);
+    ctx.scale(1.0, 0.2); 
+    ctx.beginPath();
+    ctx.arc(0, 0, 120, 0, Math.PI * 2);
+    ctx.fill();
+    return new THREE.CanvasTexture(canvas);
+  }
 }

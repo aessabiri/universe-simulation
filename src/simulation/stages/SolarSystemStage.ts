@@ -19,6 +19,7 @@ interface PlanetData {
   tilt: number;
   hasRings?: boolean;
   moons?: MoonData[];
+  info: string;
 }
 
 export class SolarSystemStage extends Stage {
@@ -34,14 +35,14 @@ export class SolarSystemStage extends Stage {
   private timeUniform = { value: 0 };
 
   private planets: PlanetData[] = [
-    { name: 'Mercury', radius: 0.3, distance: 15, speed: 1.6, color: 0x888888, tilt: 0 },
-    { name: 'Venus', radius: 0.5, distance: 25, speed: 1.1, color: 0xe3bb76, tilt: 0.05 },
-    { name: 'Earth', radius: 0.55, distance: 35, speed: 1.0, color: 0x2233ff, tilt: 0.4, moons: [{ radius: 0.12, distance: 1.4, speed: 2, color: 0xaaaaaa }] },
-    { name: 'Mars', radius: 0.4, distance: 45, speed: 0.8, color: 0xc1440e, tilt: 0.44, moons: [{ radius: 0.08, distance: 1.0, speed: 3, color: 0x888888 }] },
-    { name: 'Jupiter', radius: 1.8, distance: 75, speed: 0.4, color: 0xd8ca9d, tilt: 0.05, moons: [{ radius: 0.15, distance: 2.8, speed: 1.5, color: 0xccbb99 }] },
-    { name: 'Saturn', radius: 1.6, distance: 105, speed: 0.3, color: 0xead6b8, tilt: 0.4, hasRings: true },
-    { name: 'Uranus', radius: 1.0, distance: 140, speed: 0.2, color: 0xd1e7e7, tilt: 1.7 },
-    { name: 'Neptune', radius: 1.0, distance: 175, speed: 0.15, color: 0x3f54ba, tilt: 0.5 }
+    { name: 'Mercury', radius: 0.3, distance: 15, speed: 1.6, color: 0x888888, tilt: 0, info: "Smallest planet, closest to the Sun. Surface is covered in craters." },
+    { name: 'Venus', radius: 0.5, distance: 25, speed: 1.1, color: 0xe3bb76, tilt: 0.05, info: "Earth's twin in size, with a thick, toxic atmosphere that traps heat." },
+    { name: 'Earth', radius: 0.55, distance: 35, speed: 1.0, color: 0x2233ff, tilt: 0.4, moons: [{ radius: 0.12, distance: 1.4, speed: 2, color: 0xaaaaaa }], info: "The only known planet with liquid water and life." },
+    { name: 'Mars', radius: 0.4, distance: 45, speed: 0.8, color: 0xc1440e, tilt: 0.44, moons: [{ radius: 0.08, distance: 1.0, speed: 3, color: 0x888888 }], info: "The Red Planet. Home to massive volcanoes and desert-like landscapes." },
+    { name: 'Jupiter', radius: 1.8, distance: 75, speed: 0.4, color: 0xd8ca9d, tilt: 0.05, moons: [{ radius: 0.15, distance: 2.8, speed: 1.5, color: 0xccbb99 }], info: "Largest planet in the solar system. A gas giant with dozens of moons." },
+    { name: 'Saturn', radius: 1.6, distance: 105, speed: 0.3, color: 0xead6b8, tilt: 0.4, hasRings: true, info: "Famous for its stunning ring system made of ice and rock." },
+    { name: 'Uranus', radius: 1.0, distance: 140, speed: 0.2, color: 0xd1e7e7, tilt: 1.7, info: "An ice giant that orbits the Sun on its side." },
+    { name: 'Neptune', radius: 1.0, distance: 175, speed: 0.15, color: 0x3f54ba, tilt: 0.5, info: "The most distant planet, known for its deep blue color and supersonic winds." }
   ];
 
   private createPlanetTexture(color: number, type: 'rocky' | 'gas' | 'venus'): THREE.CanvasTexture {
@@ -227,15 +228,17 @@ export class SolarSystemStage extends Stage {
 
   public setFocusIndex(index: number | null) {
     this.focusIndex = index;
-    if (index === null) this.targetVector.set(0,0,0);
+    if (index === null) this.targetVector.set(0, 0, 0);
   }
 
   public getFocusTarget(): THREE.Vector3 | null {
     if (this.focusIndex !== null && this.planetMeshes[this.focusIndex]) {
-      this.planetMeshes[this.focusIndex].children[0].getWorldPosition(this.targetVector);
+      const planet = this.planetMeshes[this.focusIndex].children[0];
+      planet.updateMatrixWorld(true); // Force update to get current orbital position
+      planet.getWorldPosition(this.targetVector);
       return this.targetVector;
     }
-    this.targetVector.set(0,0,0);
+    this.targetVector.set(0, 0, 0);
     return this.targetVector;
   }
 

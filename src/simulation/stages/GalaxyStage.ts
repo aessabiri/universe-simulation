@@ -16,9 +16,9 @@ export class GalaxyStage extends Stage {
     const parameters = {
       radius: 12,
       branches: 3,
-      spin: 1.2,
-      randomness: 0.25,
-      randomnessPower: 3,
+      spin: 1.5, // Increased spin
+      randomness: 0.15, // Reduced randomness for tighter arms
+      randomnessPower: 4,
     };
 
     // 1. MAIN STAR POPULATION (Shader-based)

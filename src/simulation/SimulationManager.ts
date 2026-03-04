@@ -31,6 +31,7 @@ export class SimulationManager {
   private epoch: Epoch = Epoch.BIG_BANG;
   private container: HTMLElement;
   private audio = new AudioManager();
+  private onUpdateCallback: ((time: number) => void) | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -52,7 +53,7 @@ export class SimulationManager {
     const renderScene = new RenderPass(this.scene, this.camera);
     const bloomPass = new UnrealBloomPass(
       new THREE.Vector2(window.innerWidth, window.innerHeight),
-      1.5, 0.4, 0.85
+      0.8, 0.4, 0.85
     );
 
     this.composer = new EffectComposer(this.renderer);
@@ -94,6 +95,7 @@ export class SimulationManager {
 
     this.epoch = epoch;
     this.controls.reset();
+    this.controls.target.set(0, 0, 0);
     
     switch (epoch) {
       case Epoch.BIG_BANG:
@@ -102,8 +104,8 @@ export class SimulationManager {
         this.currentStage = new BigBangStage(this.scene, this.camera, this.container);
         break;
       case Epoch.PLASMA:
-        this.controls.minDistance = 2;
-        this.controls.maxDistance = 100;
+        this.controls.minDistance = 0.1;
+        this.controls.maxDistance = 10;
         this.currentStage = new PlasmaStage(this.scene, this.camera, this.container);
         break;
       case Epoch.STELLAR_DAWN:
@@ -140,6 +142,23 @@ export class SimulationManager {
     this.composer.setSize(window.innerWidth, window.innerHeight);
   }
 
+  public getCurrentStage(): Stage | null {
+    return this.currentStage;
+  }
+
+  public getProjectedPosition(worldVector: THREE.Vector3): { x: number, y: number } {
+    const vector = worldVector.clone();
+    vector.project(this.camera);
+    return {
+      x: (vector.x * 0.5 + 0.5) * window.innerWidth,
+      y: (-(vector.y * 0.5) + 0.5) * window.innerHeight
+    };
+  }
+
+  public onUpdate(cb: (time: number) => void) {
+    this.onUpdateCallback = cb;
+  }
+
   public animate(time: number) {
     if (this.currentStage) {
       this.currentStage.update(time, 0.016);
@@ -150,9 +169,11 @@ export class SimulationManager {
     }
     this.controls.update();
     this.composer.render();
-    
-    // Update audio intensity based on epoch
     this.audio.setIntensity(this.epoch / 6.0);
+
+    if (this.onUpdateCallback) {
+      this.onUpdateCallback(time);
+    }
 
     requestAnimationFrame((t) => this.animate(t));
   }

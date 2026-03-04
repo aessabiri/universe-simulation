@@ -1,9 +1,3 @@
-:root {
-  --accent: #4488ff;
-  --bg-glass: rgba(0, 0, 0, 0.6);
-  --border-glass: rgba(255, 255, 255, 0.1);
-}
-
 body {
   margin: 0;
   padding: 0;
@@ -11,7 +5,6 @@ body {
   background-color: #000;
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   color: white;
-  user-select: none;
 }
 
 #app {
@@ -27,107 +20,138 @@ body {
   height: 100%;
 }
 
-#ui-overlay {
+#ui {
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
+  bottom: 2rem;
+  left: 50%;
+  transform: translateX(-50%);
+  text-align: center;
   pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 2rem;
-  box-sizing: border-box;
-}
-
-#info-panel {
-  max-width: 450px;
-  background: var(--bg-glass);
-  backdrop-filter: blur(15px);
-  padding: 2rem;
+  z-index: 10;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 1.5rem;
   border-radius: 1rem;
-  border: 1px solid var(--border-glass);
-  pointer-events: auto;
-  animation: fadeIn 1s ease-out;
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
-#epoch-title {
-  margin: 0;
-  font-size: 2rem;
-  letter-spacing: -0.02em;
-  font-weight: 800;
-  background: linear-gradient(to right, #fff, #aaa);
+h1 {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  letter-spacing: 0.2rem;
+  text-transform: uppercase;
+  background: linear-gradient(to right, #fff, #888);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
-#epoch-time {
-  color: var(--accent);
-  text-transform: uppercase;
-  font-weight: 600;
-  font-size: 0.8rem;
-  letter-spacing: 0.1em;
-  margin: 0.5rem 0 1rem 0;
-}
-
-#epoch-description {
-  margin: 0;
-  line-height: 1.6;
-  opacity: 0.8;
-  font-size: 0.95rem;
-}
-
-#timeline-container {
-  width: 100%;
-  max-width: 800px;
-  margin: 0 auto;
-  pointer-events: auto;
-  background: var(--bg-glass);
-  backdrop-filter: blur(10px);
-  padding: 1.5rem 2rem;
-  border-radius: 100px;
-  border: 1px solid var(--border-glass);
-}
-
-input[type="range"] {
-  width: 100%;
-  cursor: pointer;
-  accent-color: var(--accent);
-}
-
-#timeline-labels {
+.controls {
   display: flex;
-  justify-content: space-between;
-  margin-top: 0.5rem;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  opacity: 0.5;
+  gap: 0.5rem;
+  pointer-events: auto;
+  margin-bottom: 1rem;
+  justify-content: center;
+}
+
+button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.8rem;
+}
+
+button:hover {
+  background: #4488ff;
+  border-color: #4488ff;
+}
+
+#description {
+  font-size: 0.9rem;
+  opacity: 0.8;
+  max-width: 500px;
+  line-height: 1.4;
+  margin: 0 auto;
 }
 
 #sub-controls {
   pointer-events: auto;
-  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+#planet-menu {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  padding: 1rem;
+  border-radius: 0.8rem;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: 120px;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+#planet-popup {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  padding: 1.2rem;
+  border-radius: 0.6rem;
+  border: 1px solid rgba(68, 136, 255, 0.3);
+  color: white;
+  width: 250px;
+  pointer-events: none;
+  z-index: 5;
+  transform: translate(0, -50%);
+}
+
+#popup-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.1rem;
+  color: #4488ff;
+}
+
+#popup-info {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  opacity: 0.9;
+}
+
+.menu-header {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1rem;
+  opacity: 0.5;
+  margin-bottom: 0.8rem;
+  text-align: center;
 }
 
 .planet-btn {
   background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--border-glass);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
-  padding: 0.4rem 0.8rem;
+  padding: 0.5rem;
   border-radius: 4px;
   cursor: pointer;
   font-size: 0.75rem;
   transition: all 0.2s;
+  width: 100%;
+  text-align: left;
 }
 
 .planet-btn:hover {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.2);
 }
 
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateX(-20px); }
-  to { opacity: 1; transform: translateX(0); }
+.planet-btn.active {
+  background: #4488ff;
+  border-color: #4488ff;
 }

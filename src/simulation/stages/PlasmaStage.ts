@@ -34,7 +34,7 @@ export class PlasmaStage extends Stage {
     this.particles = new THREE.Points(geometry, TextureUtils.createStarShaderMaterial(this.timeUniform));
     this.scene.add(this.particles);
     TextureUtils.addCosmicBackground(this.scene, 20);
-    this.camera.position.set(0, 0, 8);
+    this.camera.position.set(0, 0, 0.1); // Start inside the plasma
   }
 
   update(time: number, delta: number) {
