@@ -112,18 +112,39 @@ export const EarthFragmentShader = `
         }
       }
     } else {
-      float lifeRatio = (evolution - 0.4) / 0.6;
+      // EVOLVED EARTH (Archean -> Proterozoic -> Modern)
+      float lifeRatio = (evolution - 0.4) / 0.6; // 0 to 1
+      
+      // PROTEROZOIC LOGIC (Snowball Earth around evolution 0.7)
+      // If evolution is between 0.6 and 0.8, increase ice coverage
+      float snowballFactor = 1.0 - abs(evolution - 0.7) * 5.0;
+      snowballFactor = clamp(snowballFactor, 0.0, 1.0);
+
       if (noiseVal < 0.5) {
-        finalColor = mix(vec3(0.04, 0.1, 0.2), vec3(0.08, 0.2, 0.4), smoothstep(0.3, 0.5, noiseVal));
+        // Ocean or Sea Ice
+        vec3 waterColor = mix(vec3(0.04, 0.1, 0.2), vec3(0.08, 0.2, 0.4), smoothstep(0.3, 0.5, noiseVal));
+        finalColor = mix(waterColor, vec3(0.9, 0.95, 1.0), snowballFactor);
+        
         vec3 viewDir = normalize(cameraPosition - vPosition);
         vec3 halfDir = normalize(lightDir + viewDir);
-        finalColor += vec3(pow(max(dot(vNormal, halfDir), 0.0), 32.0) * 0.5) * diff; 
+        float spec = pow(max(dot(vNormal, halfDir), 0.0), 32.0);
+        finalColor += vec3(spec * (0.5 * (1.0 - snowballFactor))) * diff; 
       } else {
-        if (noiseVal < 0.52) finalColor = vec3(0.8, 0.7, 0.5);
-        else {
+        // Land
+        if (noiseVal < 0.52) {
+            finalColor = mix(vec3(0.8, 0.7, 0.5), vec3(0.95, 0.95, 1.0), snowballFactor);
+        } else {
           float snowLine = mix(1.0, 0.7, lifeRatio) + (fbm(pos*10.0)*0.1);
-          if (lat > snowLine) finalColor = vec3(0.95, 0.95, 1.0);
-          else finalColor = mix(vec3(0.6, 0.5, 0.4), (lat < 0.3 ? vec3(0.1, 0.3, 0.1) : vec3(0.2, 0.4, 0.2)), lifeRatio);
+          // During snowball phase, snowline drops to 0 (equator)
+          snowLine = mix(snowLine, 0.0, snowballFactor);
+          
+          if (lat > snowLine) {
+            finalColor = vec3(0.95, 0.95, 1.0);
+          } else if (lat < 0.3) {
+            finalColor = mix(vec3(0.6, 0.5, 0.4), vec3(0.1, 0.3, 0.1), lifeRatio);
+          } else {
+            finalColor = mix(vec3(0.6, 0.5, 0.4), vec3(0.2, 0.4, 0.2), lifeRatio);
+          }
         }
       }
     }

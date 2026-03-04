@@ -98,7 +98,8 @@ function showEarthControls() {
   subControls.innerHTML = '';
   const eras = [
     { name: 'Hadean (Lava)', val: 0.0 },
-    { name: 'Archean (Water)', val: 0.5 },
+    { name: 'Archean (Water)', val: 0.4 },
+    { name: 'Proterozoic (Ice)', val: 0.7 },
     { name: 'Modern (Life)', val: 1.0 }
   ];
   subControls.innerHTML = eras.map(era => `<button class="era-btn" data-val="${era.val}">${era.name}</button>`).join('');
