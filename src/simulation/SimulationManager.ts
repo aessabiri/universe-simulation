@@ -183,4 +183,10 @@ export class SimulationManager {
       (this.currentStage as any).setFocusIndex(index);
     }
   }
+
+  public setEarthStage(val: number) {
+    if (this.currentStage && this.currentStage instanceof EarthStage) {
+      this.currentStage.setEvolution(val);
+    }
+  }
 }

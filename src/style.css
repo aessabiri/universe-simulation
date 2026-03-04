@@ -134,7 +134,7 @@ button:hover {
   text-align: center;
 }
 
-.planet-btn {
+.planet-btn, .era-btn {
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.1);
   color: white;
@@ -147,11 +147,11 @@ button:hover {
   text-align: left;
 }
 
-.planet-btn:hover {
+.planet-btn:hover, .era-btn:hover {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.planet-btn.active {
+.planet-btn.active, .era-btn.active {
   background: #4488ff;
   border-color: #4488ff;
 }

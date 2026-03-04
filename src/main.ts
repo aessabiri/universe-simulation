@@ -17,7 +17,7 @@ app.innerHTML = `
     <div id="description">The Singularity expands into space-time.</div>
   </div>
   <div id="planet-menu" style="display: none;">
-    <div class="menu-header">Celestial Bodies</div>
+    <div id="menu-header" class="menu-header">Celestial Bodies</div>
     <div id="sub-controls"></div>
   </div>
   <div id="planet-popup" style="display: none;">
@@ -31,12 +31,12 @@ const manager = new SimulationManager(container);
 
 const subControls = document.getElementById('sub-controls')!;
 const planetMenu = document.getElementById('planet-menu')!;
+const menuHeader = document.getElementById('menu-header')!;
 const popup = document.getElementById('planet-popup')!;
 const popupTitle = document.getElementById('popup-title')!;
 const popupInfo = document.getElementById('popup-info')!;
 const desc = document.getElementById('description')!;
 
-// Consolidated UI update logic hooked into manager's single loop
 manager.onUpdate(() => {
   if (popup.style.display === 'block') {
     const stage = manager.getCurrentStage();
@@ -51,7 +51,6 @@ manager.onUpdate(() => {
   }
 });
 
-// Start the one and only loop
 manager.animate(0);
 
 const initAudioOnce = () => {
@@ -67,6 +66,7 @@ function hideSubControls() {
 
 function showSolarSystemControls() {
   planetMenu.style.display = 'block';
+  menuHeader.innerText = 'Celestial Bodies';
   subControls.innerHTML = ''; 
   const planets = ['Sun', 'Mercury', 'Venus', 'Earth', 'Mars', 'Jupiter', 'Saturn', 'Uranus', 'Neptune'];
   subControls.innerHTML = planets.map((p, i) => `<button class="planet-btn" data-index="${i - 1}">${p}</button>`).join('');
@@ -92,6 +92,30 @@ function showSolarSystemControls() {
   });
 }
 
+function showEarthControls() {
+  planetMenu.style.display = 'block';
+  menuHeader.innerText = 'Earth Eras';
+  subControls.innerHTML = '';
+  const eras = [
+    { name: 'Hadean (Lava)', val: 0.0 },
+    { name: 'Archean (Water)', val: 0.5 },
+    { name: 'Modern (Life)', val: 1.0 }
+  ];
+  subControls.innerHTML = eras.map(era => `<button class="era-btn" data-val="${era.val}">${era.name}</button>`).join('');
+  
+  const btns = document.querySelectorAll('.era-btn');
+  btns[btns.length - 1].classList.add('active'); // Modern active by default
+
+  btns.forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      document.querySelectorAll('.era-btn').forEach(b => b.classList.remove('active'));
+      const targetBtn = e.target as HTMLButtonElement;
+      targetBtn.classList.add('active');
+      manager.setEarthStage(parseFloat(targetBtn.dataset.val!));
+    });
+  });
+}
+
 document.getElementById('btn-bigbang')?.addEventListener('click', () => {
   manager.setEpoch(Epoch.BIG_BANG); hideSubControls(); desc.innerText = 'The Singularity expands into space-time.';
 });
@@ -108,5 +132,5 @@ document.getElementById('btn-solar')?.addEventListener('click', () => {
   manager.setEpoch(Epoch.SOLAR_SYSTEM); showSolarSystemControls(); desc.innerText = 'A Protoplanetary Disk forms around a young Sun.';
 });
 document.getElementById('btn-earth')?.addEventListener('click', () => {
-  manager.setEpoch(Epoch.EARTH); hideSubControls(); desc.innerText = 'Earth: A lush, blue marble with dynamic clouds and a protective atmosphere.';
+  manager.setEpoch(Epoch.EARTH); showEarthControls(); desc.innerText = 'Earth: A lush, blue marble with dynamic clouds and a protective atmosphere.';
 });
