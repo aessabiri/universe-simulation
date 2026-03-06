@@ -217,7 +217,7 @@ export class SolarSystemStage extends Stage {
       pivot.rotation.y = t * this.planets[i].speed;
     });
     this.planetMeshes.forEach(pGroup => {
-      pGroup.children[0].rotation.y += 0.005;
+      pGroup.children[0].rotation.y += 0.002; // Reduced from 0.005 for slower rotation
     });
     this.moonMeshes.forEach(m => {
       m.pivot.rotation.y += m.speed * 0.01;

@@ -114,7 +114,7 @@ export class EarthStage extends Stage {
     this.scene.add(this.moon2);
 
     // 6. Sun
-    this.sun = new THREE.Mesh(new THREE.SphereGeometry(25, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    this.sun = new THREE.Mesh(new THREE.SphereGeometry(50, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     this.sun.position.copy(this.uniforms.sunPosition.value);
     this.scene.add(this.sun);
     const sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
@@ -123,7 +123,7 @@ export class EarthStage extends Stage {
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 
     const lensflare = new Lensflare();
-    lensflare.addElement(new LensflareElement(TextureUtils.createCircularParticleTexture(), 700, 0, new THREE.Color(0xffddaa)));
+    lensflare.addElement(new LensflareElement(TextureUtils.createCircularParticleTexture(), 1200, 0, new THREE.Color(0xffddaa)));
     sunLight.add(lensflare);
 
     this.camera.position.set(0, 0, 8);
