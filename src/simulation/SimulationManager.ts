@@ -87,12 +87,12 @@ export class SimulationManager {
     switch (epoch) {
       case Epoch.BIG_BANG:
         this.controls.minDistance = 2;
-        this.controls.maxDistance = 1000;
+        this.controls.maxDistance = 50; // Keep inside the expansion
         this.currentStage = new BigBangStage(this.scene, this.camera, this.container);
         break;
       case Epoch.PLASMA:
         this.controls.minDistance = 0.1;
-        this.controls.maxDistance = 100;
+        this.controls.maxDistance = 15; // Stay immersed in the soup
         this.currentStage = new PlasmaStage(this.scene, this.camera, this.container);
         break;
       case Epoch.STELLAR_DAWN:
