@@ -38,7 +38,7 @@ export class SimulationManager {
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(0x000000);
     
-    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+    this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 5000);
     this.camera.position.set(0, 5, 10);
 
     this.renderer = new THREE.WebGLRenderer({ 
@@ -76,24 +76,8 @@ export class SimulationManager {
   public setEpoch(epoch: Epoch) {
     if (this.currentStage) {
       this.currentStage.destroy();
-      
-      // DEEP CLEAN: Remove everything and reset background
-      this.scene.background = new THREE.Color(0x000000);
-      while(this.scene.children.length > 0){ 
-          const object = this.scene.children[0];
-          this.scene.remove(object);
-          if (object instanceof THREE.Mesh || object instanceof THREE.Points || object instanceof THREE.Sprite || object instanceof THREE.LineSegments) {
-              if(object.geometry) object.geometry.dispose();
-              if(object.material) {
-                  if (Array.isArray(object.material)) {
-                      object.material.forEach(m => m.dispose());
-                  } else {
-                      object.material.dispose();
-                  }
-              }
-          }
-      }
       this.scene.clear();
+      this.scene.background = new THREE.Color(0x000000);
     }
 
     this.epoch = epoch;
@@ -103,32 +87,32 @@ export class SimulationManager {
     switch (epoch) {
       case Epoch.BIG_BANG:
         this.controls.minDistance = 2;
-        this.controls.maxDistance = 100;
+        this.controls.maxDistance = 1000;
         this.currentStage = new BigBangStage(this.scene, this.camera, this.container);
         break;
       case Epoch.PLASMA:
         this.controls.minDistance = 0.1;
-        this.controls.maxDistance = 10;
+        this.controls.maxDistance = 100;
         this.currentStage = new PlasmaStage(this.scene, this.camera, this.container);
         break;
       case Epoch.STELLAR_DAWN:
         this.controls.minDistance = 1;
-        this.controls.maxDistance = 120;
+        this.controls.maxDistance = 500;
         this.currentStage = new StellarDawnStage(this.scene, this.camera, this.container);
         break;
       case Epoch.GALAXY_FORMATION:
         this.controls.minDistance = 5;
-        this.controls.maxDistance = 100;
+        this.controls.maxDistance = 500;
         this.currentStage = new GalaxyStage(this.scene, this.camera, this.container);
         break;
       case Epoch.SOLAR_SYSTEM:
-        this.controls.minDistance = 20;
-        this.controls.maxDistance = 1000;
+        this.controls.minDistance = 10;
+        this.controls.maxDistance = 2000;
         this.currentStage = new SolarSystemStage(this.scene, this.camera, this.container);
         break;
       case Epoch.EARTH:
-        this.controls.minDistance = 4;
-        this.controls.maxDistance = 100;
+        this.controls.minDistance = 3;
+        this.controls.maxDistance = 500;
         this.currentStage = new EarthStage(this.scene, this.camera, this.container);
         break;
     }

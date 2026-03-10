@@ -21,6 +21,9 @@ interface PlanetData {
   hasRings?: boolean;
   moons?: MoonData[];
   info: string;
+  composition: string;
+  temperature: string;
+  atmosphere: string;
 }
 
 export class SolarSystemStage extends Stage {
@@ -37,14 +40,75 @@ export class SolarSystemStage extends Stage {
   private timeUniform = { value: 0 };
 
   private planets: PlanetData[] = [
-    { name: 'Mercury', radius: 0.5, distance: 15, speed: 1.6, color: 0xffaa88, tilt: 0, info: "Smallest planet, closest to the Sun. Surface is covered in craters." },
-    { name: 'Venus', radius: 0.8, distance: 25, speed: 1.1, color: 0xffdd44, tilt: 0.05, info: "Earth's twin in size, with a thick, toxic atmosphere that traps heat." },
-    { name: 'Earth', radius: 0.9, distance: 35, speed: 1.0, color: 0x0088ff, tilt: 0.4, moons: [{ name: 'Moon', radius: 0.15, distance: 1.8, speed: 2, color: 0xaaaaaa }], info: "The only known planet with liquid water and life." },
-    { name: 'Mars', radius: 0.6, distance: 45, speed: 0.8, color: 0xff4400, tilt: 0.44, moons: [{ name: 'Phobos', radius: 0.08, distance: 1.2, speed: 3, color: 0x888888 }, { name: 'Deimos', radius: 0.06, distance: 1.5, speed: 2.5, color: 0x999999 }], info: "The Red Planet. Home to massive volcanoes and desert-like landscapes." },
-    { name: 'Jupiter', radius: 2.5, distance: 75, speed: 0.4, color: 0xffaa33, tilt: 0.05, moons: [{ name: 'Io', radius: 0.15, distance: 3.5, speed: 2.0, color: 0xffcc00 }, { name: 'Europa', radius: 0.14, distance: 4.2, speed: 1.6, color: 0xdddddd }, { name: 'Ganymede', radius: 0.22, distance: 5.2, speed: 1.2, color: 0x998877 }, { name: 'Callisto', radius: 0.2, distance: 6.2, speed: 0.8, color: 0x777777 }], info: "Largest planet. A gas giant with dozens of moons and a Great Red Spot." },
-    { name: 'Saturn', radius: 2.2, distance: 105, speed: 0.3, color: 0xffcc88, tilt: 0.4, hasRings: true, moons: [{ name: 'Titan', radius: 0.25, distance: 4.5, speed: 1.2, color: 0xffaa00 }], info: "Famous for its stunning ring system made of ice and rock." },
-    { name: 'Uranus', radius: 1.4, distance: 140, speed: 0.2, color: 0x00ffff, tilt: 1.7, info: "An ice giant that tilts so far it orbits on its side." },
-    { name: 'Neptune', radius: 1.4, distance: 175, speed: 0.15, color: 0x3366ff, tilt: 0.5, moons: [{ name: 'Triton', radius: 0.2, distance: 3.2, speed: 1.5, color: 0xccbb99 }], info: "The most distant planet, known for deep blue color and supersonic winds." }
+    { 
+      name: 'Mercury', radius: 0.5, distance: 15, speed: 1.6, color: 0xffaa88, tilt: 0, 
+      info: "The smallest planet and closest to the Sun.",
+      composition: "70% metallic and 30% silicate material.",
+      temperature: "430°C (Day), -180°C (Night)",
+      atmosphere: "Thin exosphere (Oxygen, Sodium, Hydrogen)."
+    },
+    { 
+      name: 'Venus', radius: 0.8, distance: 25, speed: 1.1, color: 0xffdd44, tilt: 0.05, 
+      info: "Earth's twin in size with a runaway greenhouse effect.",
+      composition: "Central iron core and rocky mantle.",
+      temperature: "462°C (Average)",
+      atmosphere: "96% Carbon Dioxide, 3% Nitrogen."
+    },
+    { 
+      name: 'Earth', radius: 0.9, distance: 35, speed: 1.0, color: 0x0088ff, tilt: 0.4, 
+      moons: [{ name: 'Moon', radius: 0.15, distance: 1.8, speed: 2, color: 0xaaaaaa }], 
+      info: "The only known planet with liquid water and life.",
+      composition: "Iron core, silicate mantle and crust.",
+      temperature: "15°C (Average)",
+      atmosphere: "78% Nitrogen, 21% Oxygen."
+    },
+    { 
+      name: 'Mars', radius: 0.6, distance: 45, speed: 0.8, color: 0xff4400, tilt: 0.44, 
+      moons: [
+        { name: 'Phobos', radius: 0.08, distance: 1.2, speed: 3, color: 0x888888 }, 
+        { name: 'Deimos', radius: 0.06, distance: 1.5, speed: 2.5, color: 0x999999 }
+      ], 
+      info: "The Red Planet, home to the largest volcanoes in the system.",
+      composition: "Silicon, oxygen, iron, and magnesium.",
+      temperature: "-65°C (Average)",
+      atmosphere: "95% Carbon Dioxide, 2.7% Nitrogen."
+    },
+    { 
+      name: 'Jupiter', radius: 2.5, distance: 75, speed: 0.4, color: 0xffaa33, tilt: 0.05, 
+      moons: [
+        { name: 'Io', radius: 0.15, distance: 3.5, speed: 2.0, color: 0xffcc00 }, 
+        { name: 'Europa', radius: 0.14, distance: 4.2, speed: 1.6, color: 0xdddddd }, 
+        { name: 'Ganymede', radius: 0.22, distance: 5.2, speed: 1.2, color: 0x998877 }, 
+        { name: 'Callisto', radius: 0.2, distance: 6.2, speed: 0.8, color: 0x777777 }
+      ], 
+      info: "The King of Planets, a gas giant with a Great Red Spot.",
+      composition: "89% Hydrogen, 10% Helium.",
+      temperature: "-110°C (Average)",
+      atmosphere: "Hydrogen, Helium, Methane, Ammonia."
+    },
+    { 
+      name: 'Saturn', radius: 2.2, distance: 105, speed: 0.3, color: 0xffcc88, tilt: 0.4, hasRings: true, 
+      moons: [{ name: 'Titan', radius: 0.25, distance: 4.5, speed: 1.2, color: 0xffaa00 }], 
+      info: "Famous for its spectacular ring system made of ice.",
+      composition: "96% Hydrogen, 3% Helium.",
+      temperature: "-140°C (Average)",
+      atmosphere: "Hydrogen, Helium, Methane."
+    },
+    { 
+      name: 'Uranus', radius: 1.4, distance: 140, speed: 0.2, color: 0x00ffff, tilt: 1.7, 
+      info: "An ice giant that orbits the Sun on its side.",
+      composition: "Ices (Water, Ammonia, Methane).",
+      temperature: "-195°C (Average)",
+      atmosphere: "Hydrogen, Helium, Methane."
+    },
+    { 
+      name: 'Neptune', radius: 1.4, distance: 175, speed: 0.15, color: 0x3366ff, tilt: 0.5, 
+      moons: [{ name: 'Triton', radius: 0.2, distance: 3.2, speed: 1.5, color: 0xccbb99 }], 
+      info: "Known for its deep blue color and supersonic winds.",
+      composition: "80% Hydrogen, 19% Helium, 1.5% Methane.",
+      temperature: "-201°C (Average)",
+      atmosphere: "Hydrogen, Helium, Methane."
+    }
   ];
 
   private createPlanetTexture(color: number, type: 'rocky' | 'gas', name: string): THREE.CanvasTexture {
@@ -52,17 +116,12 @@ export class SolarSystemStage extends Stage {
     canvas.width = 1024; canvas.height = 512;
     const ctx = canvas.getContext('2d')!;
     const baseColor = new THREE.Color(color);
-    
-    // Fill base
     ctx.fillStyle = '#' + baseColor.getHexString();
     ctx.fillRect(0, 0, canvas.width, canvas.height);
-
     if (type === 'gas') {
-      // High contrast atmospheric bands
       for (let i = 0; i < 40; i++) {
         const y = Math.random() * canvas.height;
         const h = 5 + Math.random() * 30;
-        // Vary between lighter and much darker shades for contrast
         const factor = Math.random() > 0.5 ? 0.5 : 1.5;
         const shade = baseColor.clone().multiplyScalar(factor);
         ctx.fillStyle = '#' + shade.getHexString();
@@ -71,16 +130,11 @@ export class SolarSystemStage extends Stage {
       }
       if (name === 'Jupiter') {
         ctx.globalAlpha = 0.9;
-        ctx.fillStyle = '#802000'; // Dark Red
-        ctx.beginPath();
-        ctx.ellipse(700, 380, 80, 45, 0, 0, Math.PI * 2);
-        ctx.fill();
-        ctx.strokeStyle = '#401000';
-        ctx.lineWidth = 10;
-        ctx.stroke();
+        ctx.fillStyle = '#802000';
+        ctx.beginPath(); ctx.ellipse(700, 380, 80, 45, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#401000'; ctx.lineWidth = 10; ctx.stroke();
       }
     } else {
-      // Rocky Surface: Noise and Cracks
       for (let i = 0; i < 500; i++) {
         const x = Math.random() * canvas.width;
         const y = Math.random() * canvas.height;
@@ -92,7 +146,6 @@ export class SolarSystemStage extends Stage {
         ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI * 2); ctx.fill();
       }
     }
-    
     const tex = new THREE.CanvasTexture(canvas);
     tex.anisotropy = 16;
     return tex;
@@ -115,35 +168,26 @@ export class SolarSystemStage extends Stage {
 
   init() {
     this.scene.add(new THREE.Mesh(new THREE.SphereGeometry(6, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff })));
-    const sunLight = new THREE.PointLight(0xffffff, 10, 600); 
-    this.scene.add(sunLight);
-
-    // Global light that will follow planets
-    this.planetLight = new THREE.DirectionalLight(0xffffff, 2.0);
-    this.scene.add(this.planetLight);
-    this.scene.add(this.planetLight.target);
-
+    this.sunLight = new THREE.PointLight(0xffffff, 5, 0, 0); 
+    this.scene.add(this.sunLight);
     const hueSprite = new THREE.Sprite(new THREE.SpriteMaterial({ map: TextureUtils.createSunHueTexture(), transparent: true, opacity: 0.8, blending: THREE.AdditiveBlending }));
     hueSprite.scale.set(60, 60, 1);
     this.scene.add(hueSprite);
-
     const lensflare = new Lensflare();
     lensflare.addElement(new LensflareElement(TextureUtils.createFlareGhostTexture(), 40, 0.6, new THREE.Color(0xffccaa)));
-    sunLight.add(lensflare);
+    this.sunLight.add(lensflare);
 
     this.planets.forEach(p => {
       const pivot = new THREE.Group();
       this.scene.add(pivot);
       this.planetPivots.push(pivot);
-
       const type = (p.name === 'Jupiter' || p.name === 'Saturn' || p.name === 'Uranus' || p.name === 'Neptune') ? 'gas' : 'rocky';
       const mat = new THREE.MeshStandardMaterial({ 
         map: this.createPlanetTexture(p.color, type, p.name),
         roughness: 0.7, metalness: 0.1,
         emissive: new THREE.Color(p.color),
-        emissiveIntensity: 0.02 // MINIMAL emissive to show texture
+        emissiveIntensity: 0.02
       });
-      
       const planetGroup = new THREE.Group();
       const mesh = new THREE.Mesh(new THREE.SphereGeometry(p.radius, 32, 32), mat);
       planetGroup.add(mesh);
@@ -151,13 +195,11 @@ export class SolarSystemStage extends Stage {
       planetGroup.rotation.z = p.tilt;
       pivot.add(planetGroup);
       this.planetMeshes.push(planetGroup);
-
       if (p.hasRings) {
         const rings = new THREE.Mesh(new THREE.RingGeometry(p.radius * 1.4, p.radius * 2.5, 64), new THREE.MeshStandardMaterial({ map: this.createRingTexture(), side: THREE.DoubleSide, transparent: true, opacity: 0.7 }));
         rings.rotation.x = Math.PI / 2;
         planetGroup.add(rings);
       }
-
       if (p.moons) {
         p.moons.forEach(m => {
           const moonPivot = new THREE.Group();
@@ -168,17 +210,14 @@ export class SolarSystemStage extends Stage {
           this.moonMeshes.push({ mesh: moonMesh, pivot: moonPivot, speed: m.speed, distance: m.distance });
         });
       }
-
       const path = new THREE.Mesh(new THREE.RingGeometry(p.distance - 0.05, p.distance + 0.05, 128), new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.08, side: THREE.DoubleSide }));
       path.rotation.x = Math.PI / 2;
       this.scene.add(path);
     });
-
     this.asteroidBelt = this.createBelt(55, 62, 4000, 0.08, 0x888888);
     this.scene.add(this.asteroidBelt);
     this.kuiperBelt = this.createBelt(210, 260, 8000, 0.15, 0xaaaaaa);
     this.scene.add(this.kuiperBelt);
-
     TextureUtils.addCosmicBackground(this.scene, 30);
     this.createStars();
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.05));

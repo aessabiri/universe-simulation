@@ -23,6 +23,9 @@ app.innerHTML = `
   <div id="planet-popup" style="display: none;">
     <h2 id="popup-title"></h2>
     <p id="popup-info"></p>
+    <div class="stat-row"><strong>Composition:</strong> <span id="popup-comp"></span></div>
+    <div class="stat-row"><strong>Temperature:</strong> <span id="popup-temp"></span></div>
+    <div class="stat-row"><strong>Atmosphere:</strong> <span id="popup-atmo"></span></div>
   </div>
 `;
 
@@ -35,6 +38,9 @@ const menuHeader = document.getElementById('menu-header')!;
 const popup = document.getElementById('planet-popup')!;
 const popupTitle = document.getElementById('popup-title')!;
 const popupInfo = document.getElementById('popup-info')!;
+const popupComp = document.getElementById('popup-comp')!;
+const popupTemp = document.getElementById('popup-temp')!;
+const popupAtmo = document.getElementById('popup-atmo')!;
 const desc = document.getElementById('description')!;
 
 manager.onUpdate(() => {
@@ -77,12 +83,16 @@ function showSolarSystemControls() {
       targetBtn.classList.add('active');
       const idx = parseInt(targetBtn.dataset.index!);
       manager.focusOnIndex(idx === -1 ? null : idx);
+      
       if (idx !== -1) {
         const stage = manager.getCurrentStage() as any;
         if (stage && stage.planets) {
             const planetData = stage.planets[idx];
             popupTitle.innerText = planetData.name;
             popupInfo.innerText = planetData.info;
+            popupComp.innerText = planetData.composition;
+            popupTemp.innerText = planetData.temperature;
+            popupAtmo.innerText = planetData.atmosphere;
             popup.style.display = 'block';
         }
       } else {
@@ -103,10 +113,8 @@ function showEarthControls() {
     { name: 'Modern (Life)', val: 1.0 }
   ];
   subControls.innerHTML = eras.map(era => `<button class="era-btn" data-val="${era.val}">${era.name}</button>`).join('');
-  
   const btns = document.querySelectorAll('.era-btn');
-  btns[btns.length - 1].classList.add('active'); // Modern active by default
-
+  btns[btns.length - 1].classList.add('active');
   btns.forEach(btn => {
     btn.addEventListener('click', (e) => {
       document.querySelectorAll('.era-btn').forEach(b => b.classList.remove('active'));
