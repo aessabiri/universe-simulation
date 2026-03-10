@@ -107,7 +107,7 @@ export class SimulationManager {
         break;
       case Epoch.SOLAR_SYSTEM:
         this.controls.minDistance = 10;
-        this.controls.maxDistance = 2000;
+        this.controls.maxDistance = 600;
         this.currentStage = new SolarSystemStage(this.scene, this.camera, this.container);
         break;
       case Epoch.EARTH:

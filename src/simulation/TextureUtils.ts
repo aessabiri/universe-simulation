@@ -13,8 +13,7 @@ export class TextureUtils {
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 128, 128);
-    const tex = new THREE.CanvasTexture(canvas);
-    return tex;
+    return new THREE.CanvasTexture(canvas);
   }
 
   static createNebulaTexture(): THREE.CanvasTexture {
@@ -22,8 +21,8 @@ export class TextureUtils {
     canvas.width = 256; canvas.height = 256;
     const ctx = canvas.getContext('2d')!;
     const gradient = ctx.createRadialGradient(128, 128, 0, 128, 128, 128);
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.3)');
-    gradient.addColorStop(0.4, 'rgba(100, 150, 255, 0.15)');
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.4)');
+    gradient.addColorStop(0.4, 'rgba(100, 150, 255, 0.2)');
     gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
     ctx.fillStyle = gradient;
     ctx.fillRect(0, 0, 256, 256);
@@ -45,45 +44,71 @@ export class TextureUtils {
     });
   }
 
-  static addCosmicBackground(scene: THREE.Scene, count: number = 40): void {
+  static addCosmicBackground(scene: THREE.Scene, count: number = 80): void {
     const nebulaTexture = this.createNebulaTexture();
-    const colors = [0x221144, 0x112244, 0x052233, 0x1a0522];
+    // VIBRANT COSMIC PALETTE
+    const colors = [
+        0x4411aa, // Deep Purple
+        0xaa1166, // Magenta
+        0x1166aa, // Deep Blue
+        0x00aa88, // Cyan/Teal
+        0xaa6611, // Amber/Dust
+        0x220044  // Dark Violet
+    ];
+    
+    // 1. Massive Background Nebulae (Fills the entire sphere)
     for (let i = 0; i < count; i++) {
       const material = new THREE.MeshBasicMaterial({
-        map: nebulaTexture, transparent: true, opacity: 0.25, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.BackSide
+        map: nebulaTexture, 
+        transparent: true, 
+        opacity: 0.45, // Doubled opacity
+        blending: THREE.AdditiveBlending, 
+        depthWrite: false, 
+        side: THREE.DoubleSide // Ensure visibility from all sides
       });
-      const size = 300 + Math.random() * 600;
+      
+      const size = 600 + Math.random() * 1000; // Much larger
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(size, size), material);
-      const radius = 600 + Math.random() * 300;
+      
+      const radius = 600 + Math.random() * 400;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.random() * Math.PI;
-      mesh.position.set(radius * Math.sin(phi) * Math.cos(theta), radius * Math.sin(phi) * Math.sin(theta), radius * Math.cos(phi));
+      
+      mesh.position.set(
+        radius * Math.sin(phi) * Math.cos(theta),
+        radius * Math.sin(phi) * Math.sin(theta),
+        radius * Math.cos(phi)
+      );
+      
       mesh.lookAt(0, 0, 0);
-      mesh.material.color.setHex(colors[Math.floor(Math.random() * colors.length)]);
+      mesh.rotation.z = Math.random() * Math.PI; // Random rotation for variety
+      mesh.material.color.setHex(colors[i % colors.length]);
       scene.add(mesh);
     }
     
-    // Distant Galaxy Clusters
-    const clusterCount = 1000;
+    // 2. Distant Galaxy Clusters (Thousands of tiny glowing hubs)
+    const clusterCount = 3000;
     const clusterGeo = new THREE.BufferGeometry();
     const clusterPos = new Float32Array(clusterCount * 3);
     const clusterCol = new Float32Array(clusterCount * 3);
     for (let i = 0; i < clusterCount; i++) {
-      const radius = 500 + Math.random() * 400;
+      const radius = 700 + Math.random() * 500;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       clusterPos[i * 3] = radius * Math.sin(phi) * Math.cos(theta);
       clusterPos[i * 3 + 1] = radius * Math.sin(phi) * Math.sin(theta);
       clusterPos[i * 3 + 2] = radius * Math.cos(phi);
-      const color = new THREE.Color().setHSL(Math.random(), 0.3, 0.7);
+      
+      const color = new THREE.Color().setHSL(Math.random(), 0.5, 0.7);
       clusterCol[i * 3] = color.r; clusterCol[i * 3 + 1] = color.g; clusterCol[i * 3 + 2] = color.b;
     }
     clusterGeo.setAttribute('position', new THREE.BufferAttribute(clusterPos, 3));
     clusterGeo.setAttribute('color', new THREE.BufferAttribute(clusterCol, 3));
-    scene.add(new THREE.Points(clusterGeo, new THREE.PointsMaterial({ size: 1.5, vertexColors: true, transparent: true, opacity: 0.4, blending: THREE.AdditiveBlending, depthWrite: false })));
+    scene.add(new THREE.Points(clusterGeo, new THREE.PointsMaterial({ 
+        size: 2.0, vertexColors: true, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false 
+    })));
   }
 
-  // Common Flare and Sun Textures
   static createFlareGhostTexture(): THREE.CanvasTexture {
     const canvas = document.createElement('canvas');
     canvas.width = 128; canvas.height = 128;
