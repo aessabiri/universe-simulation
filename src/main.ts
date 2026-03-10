@@ -57,7 +57,6 @@ app.innerHTML = `
       <div class="scan-bar"><div id="scan-h2o" class="scan-fill" style="width: 0%"></div><span>H2O</span></div>
       <div class="scan-bar"><div id="scan-c" class="scan-fill" style="width: 0%"></div><span>CARBON</span></div>
       <div id="habitability-score">ANALYZING...</div>
-      <button id="btn-deploy-seed" style="display: none;">DEPLOY BIOLOGICAL SEED</button>
     </div>
 
     <div id="info-stats">
@@ -83,20 +82,12 @@ app.innerHTML = `
     <div class="stat-row"><strong>Composition:</strong> <span id="popup-comp"></span></div>
     <div class="stat-row"><strong>Temperature:</strong> <span id="popup-temp"></span></div>
     <div class="stat-row"><strong>Atmosphere:</strong> <span id="popup-atmo"></span></div>
+    <button id="btn-deploy-seed" style="display: none; margin-top: 15px;">DEPLOY BIOLOGICAL SEED</button>
   </div>
 `;
 
 const container = document.querySelector<HTMLDivElement>('#canvas-container')!;
 const manager = new SimulationManager(container);
-
-const epochInfo: Record<string, any> = {
-  BIG_BANG: { name: "The Big Bang", time: "T + 0 Seconds", temp: "10^32 Kelvin", desc: "Space, time, and matter erupt from a singularity. The universe expands faster than light during cosmic inflation." },
-  PLASMA: { name: "Quark-Gluon Plasma", time: "T + 1 Microsecond", temp: "10^13 Kelvin", desc: "A chaotic, ultra-hot soup of fundamental particles. Protons and neutrons haven't even formed yet." },
-  STELLAR_DAWN: { name: "Stellar Dawn", time: "T + 100 Million Years", temp: "60 Kelvin", desc: "Gravity pulls primordial gas together to ignite the very first stars, ending the Cosmic Dark Ages." },
-  GALAXY_FORMATION: { name: "Galaxy Formation", time: "T + 1 Billion Years", temp: "20 Kelvin", desc: "Gigantic clusters of stars and gas collapse into the majestic spiral and elliptical structures we see today." },
-  SOLAR_SYSTEM: { name: "The Solar System", time: "T + 9 Billion Years", temp: "2.7 Kelvin", desc: "A cloud of dust and gas collapses around a young star—our Sun—forming a protoplanetary disk." },
-  EARTH: { name: "Planet Earth", time: "T + 13.8 Billion Years", temp: "288 Kelvin", desc: "Our home world. Witness the results of your successful biological seeding." }
-};
 
 const progress = document.getElementById('timeline-progress')!;
 const epochName = document.getElementById('epoch-name')!;
@@ -117,12 +108,14 @@ const scanC = document.getElementById('scan-c')!;
 const habScore = document.getElementById('habitability-score')!;
 const btnDeploy = document.getElementById('btn-deploy-seed')!;
 
-function updateHUD(key: string) {
-    const info = epochInfo[key];
-    epochName.innerText = info.name;
-    epochDesc.innerText = info.desc;
-    statTime.innerText = info.time;
-    statTemp.innerText = info.temp;
+function updateHUD() {
+    const data = manager.getEpochData();
+    if (data) {
+        epochName.innerText = data.title;
+        epochDesc.innerText = data.info;
+        statTime.innerText = data.time;
+        statTemp.innerText = data.temp;
+    }
 }
 
 manager.onUpdate(() => {
@@ -179,7 +172,6 @@ function showSolarSystemControls() {
             document.getElementById('popup-atmo')!.innerText = planetData.atmosphere;
             popup.style.display = 'block';
 
-            // TRIGGER SCANNER HUD
             scannerHud.style.display = 'block';
             scanningReticle.style.display = 'block';
             scanO2.style.width = `${planetData.scanData.o2}%`;
@@ -188,6 +180,8 @@ function showSolarSystemControls() {
             const score = Math.round((planetData.scanData.o2 * 2 + planetData.scanData.h2o) / 2.5);
             habScore.innerText = `HABITABILITY: ${score}%`;
             habScore.style.color = score > 50 ? '#00ff88' : '#ff4444';
+            
+            // THE BUTTON IS NOW HERE IN THE POPUP
             btnDeploy.style.display = (planetData.name === 'Earth' && score > 50) ? 'block' : 'none';
         }
       } else {
@@ -228,7 +222,7 @@ function syncEpoch(key: string, pWidth: string) {
         m.classList.toggle('active', (m as HTMLElement).dataset.epoch === key);
     });
     manager.setEpoch((Epoch as any)[key]);
-    updateHUD(key);
+    updateHUD();
     if (key === 'SOLAR_SYSTEM') showSolarSystemControls();
     else if (key === 'EARTH') showEarthControls();
     else hideSubControls();
@@ -241,9 +235,7 @@ document.querySelectorAll('.epoch-marker').forEach(marker => {
     });
 });
 
-document.getElementById('btn-bigbang')?.addEventListener('click', () => {
-  syncEpoch('BIG_BANG', '0%'); desc.innerText = 'The Origin: From the singularity to the cooling plasma soup.';
-});
+document.getElementById('btn-bigbang')?.addEventListener('click', () => { syncEpoch('BIG_BANG', '0%'); desc.innerText = 'The Origin: From the singularity to the cooling plasma soup.'; });
 document.getElementById('btn-stellardawn')?.addEventListener('click', () => { syncEpoch('STELLAR_DAWN', '35%'); desc.innerText = 'Stellar Dawn: The first massive stars ignite.'; });
 document.getElementById('btn-galaxy')?.addEventListener('click', () => { syncEpoch('GALAXY_FORMATION', '55%'); desc.innerText = 'Gravity pulls matter into galaxies.'; });
 document.getElementById('btn-solar')?.addEventListener('click', () => { syncEpoch('SOLAR_SYSTEM', '75%'); desc.innerText = 'Sun and protoplanetary disk form.'; });

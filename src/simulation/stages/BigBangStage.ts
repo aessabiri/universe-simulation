@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
+import { MemoryUtils } from '../MemoryUtils';
 
 export class BigBangStage extends Stage {
   private particles: THREE.Points | null = null;
@@ -225,9 +226,18 @@ export class BigBangStage extends Stage {
     }
   }
 
-  destroy() { this.scene.clear(); }
+  destroy() { 
+    MemoryUtils.disposeObject(this.phantoms);
+    MemoryUtils.disposeObject(this.singularityGroup);
+    MemoryUtils.disposeObject(this.whiteFlash);
+    MemoryUtils.disposeObject(this.particles);
+    MemoryUtils.disposeObject(this.filaments);
+    MemoryUtils.disposeTexture(this.uniforms.pointTexture.value);
+    this.scene.clear(); 
+  }
 }
 
 function mixValue(a: number, b: number, t: number) {
     return a * (1 - t) + b * t;
 }
+

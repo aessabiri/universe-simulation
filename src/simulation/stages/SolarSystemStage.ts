@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
+import { MemoryUtils } from '../MemoryUtils';
 import { Lensflare, LensflareElement } from 'three/examples/jsm/objects/Lensflare.js';
 
 interface MoonData {
@@ -290,5 +291,24 @@ export class SolarSystemStage extends Stage {
     return this.targetVector;
   }
 
-  destroy() { this.scene.clear(); }
+  destroy() { 
+    this.planetPivots.forEach(p => MemoryUtils.disposeObject(p));
+    this.planetMeshes.forEach(p => MemoryUtils.disposeObject(p));
+    this.moonMeshes.forEach(m => {
+      MemoryUtils.disposeObject(m.mesh);
+      MemoryUtils.disposeObject(m.pivot);
+    });
+    MemoryUtils.disposeObject(this.asteroidBelt);
+    MemoryUtils.disposeObject(this.kuiperBelt);
+    MemoryUtils.disposeObject(this.sun);
+    MemoryUtils.disposeObject(this.scene);
+    
+    this.planetPivots = [];
+    this.planetMeshes = [];
+    this.moonMeshes = [];
+    this.asteroidBelt = null;
+    this.kuiperBelt = null;
+    this.sun = null;
+    this.scene.clear(); 
+  }
 }

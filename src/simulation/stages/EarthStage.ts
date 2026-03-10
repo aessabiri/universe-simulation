@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
+import { MemoryUtils } from '../MemoryUtils';
 import { Lensflare, LensflareElement } from 'three/examples/jsm/objects/Lensflare.js';
-import { EarthVertexShader, EarthFragmentShader } from '../shaders/EarthShaders';
+import { EarthVertexShader, EarthFragmentShader, AtmosphereVertexShader, AtmosphereFragmentShader } from '../shaders/EarthShaders';
 import { CloudVertexShader, CloudFragmentShader } from '../shaders/CloudShaders';
 
 interface Impact {
@@ -20,7 +21,6 @@ export class EarthStage extends Stage {
   private sun: THREE.Mesh | null = null;
   private stars: THREE.Points | null = null;
   
-  private impacts: Impact[] = [];
   private meteors: THREE.Mesh[] = [];
 
   private uniforms = {
@@ -87,15 +87,13 @@ export class EarthStage extends Stage {
     );
     this.scene.add(this.clouds);
 
-    // 4. Atmosphere
-    const atmoVertex = `varying vec3 vNormal; void main() { vNormal = normalize(normalMatrix * normal); gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`;
-    const atmoFragment = `varying vec3 vNormal; uniform float evolution; void main() { if(evolution < 0.3) discard; float intensity = pow(0.65 - dot(vNormal, vec3(0, 0, 1.0)), 4.0); gl_FragColor = vec4(0.3, 0.6, 1.0, 1.0) * intensity * smoothstep(0.3, 0.5, evolution); }`;
+    // 4. Atmosphere (Rayleigh Scattering Shader)
     this.atmosphere = new THREE.Mesh(
-      new THREE.SphereGeometry(2.1, 64, 64),
+      new THREE.SphereGeometry(2.15, 64, 64),
       new THREE.ShaderMaterial({
         uniforms: this.uniforms,
-        vertexShader: atmoVertex,
-        fragmentShader: atmoFragment,
+        vertexShader: AtmosphereVertexShader,
+        fragmentShader: AtmosphereFragmentShader,
         blending: THREE.AdditiveBlending,
         side: THREE.BackSide,
         transparent: true,
@@ -133,25 +131,22 @@ export class EarthStage extends Stage {
     this.targetEvolution = val;
   }
 
-  private spawnImpact(time: number) {
+  private spawnImpact(t: number) {
     const phi = Math.random() * Math.PI * 2;
     const theta = Math.random() * Math.PI;
-    const targetPos = new THREE.Vector3().setFromSphericalCoords(2, theta, phi); // Surface radius is 2
+    const targetPos = new THREE.Vector3().setFromSphericalCoords(2, theta, phi);
     
-    // Spawn Meteor Visual
     const meteorGeo = new THREE.SphereGeometry(0.02, 8, 8);
     const meteorMat = new THREE.MeshBasicMaterial({ color: 0xffcc44 });
     const meteor = new THREE.Mesh(meteorGeo, meteorMat);
     
-    // Start far away in a random direction
     const startPos = targetPos.clone().multiplyScalar(5).applyAxisAngle(new THREE.Vector3(0,1,0), (Math.random()-0.5)*2);
     meteor.position.copy(startPos);
     this.scene.add(meteor);
 
-    // Metadata for animation
     (meteor as any).targetPos = targetPos;
     (meteor as any).startPos = startPos;
-    (meteor as any).birthTime = time;
+    (meteor as any).birthTime = t;
     this.meteors.push(meteor);
   }
 
@@ -159,22 +154,19 @@ export class EarthStage extends Stage {
     for (let i = this.meteors.length - 1; i >= 0; i--) {
         const m = this.meteors[i];
         const age = time - (m as any).birthTime;
-        const duration = 0.8; // 0.8 seconds to strike
+        const duration = 0.8;
         const progress = age / duration;
 
         if (progress >= 1.0) {
-            // IMPACT!
             const pos = (m as any).targetPos;
             const slot = this.uniforms.impacts.value.findIndex((v: THREE.Vector4) => v.w <= 0.01);
             if (slot !== -1) {
-                this.uniforms.impacts.value[slot].set(pos.x/2, pos.y/2, pos.z/2, 1.0);
+                this.uniforms.impacts.value[slot].set(pos.x, pos.y, pos.z, 1.0);
             }
             this.scene.remove(m);
             this.meteors.splice(i, 1);
         } else {
-            // Fly toward target
             m.position.lerpVectors((m as any).startPos, (m as any).targetPos, progress);
-            // Add a trail-like effect via scale
             m.scale.setScalar(1.0 + progress * 2.0);
         }
     }
@@ -185,18 +177,13 @@ export class EarthStage extends Stage {
     this.uniforms.time.value = t;
     this.uniforms.evolution.value += (this.targetEvolution - this.uniforms.evolution.value) * 0.05;
 
-    // Hadean Impact logic
     if (this.uniforms.evolution.value < 0.4) {
-        // Spawn roughly once every 5 seconds (0.003 * 60fps = ~0.2 per second)
         if (Math.random() > 0.997) this.spawnImpact(t);
         this.updateMeteors(t, delta);
-        
-        // Decay impacts
         this.uniforms.impacts.value.forEach((v: THREE.Vector4) => {
             if (v.w > 0) v.w -= delta * 0.4;
         });
     } else {
-        // Cleanup if not Hadean
         this.uniforms.impacts.value.forEach((v: THREE.Vector4) => v.w = 0);
         this.meteors.forEach(m => this.scene.remove(m));
         this.meteors = [];
@@ -209,6 +196,24 @@ export class EarthStage extends Stage {
   }
 
   destroy() { 
+    MemoryUtils.disposeObject(this.earth);
+    MemoryUtils.disposeObject(this.clouds);
+    MemoryUtils.disposeObject(this.atmosphere);
+    MemoryUtils.disposeObject(this.moon);
+    MemoryUtils.disposeObject(this.moon2);
+    MemoryUtils.disposeObject(this.sun);
+    MemoryUtils.disposeObject(this.stars);
+    this.meteors.forEach(m => MemoryUtils.disposeObject(m));
+    MemoryUtils.disposeObject(this.scene);
+    
+    this.earth = null;
+    this.clouds = null;
+    this.atmosphere = null;
+    this.moon = null;
+    this.moon2 = null;
+    this.sun = null;
+    this.stars = null;
+    this.meteors = [];
     this.scene.clear(); 
   }
 }

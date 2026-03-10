@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
+import { MemoryUtils } from '../MemoryUtils';
 import { PlasmaVertexShader, PlasmaFragmentShader } from '../shaders/PlasmaShaders';
 
 export class PlasmaStage extends Stage {
@@ -103,5 +104,12 @@ export class PlasmaStage extends Stage {
     }
   }
 
-  destroy() { this.scene.clear(); }
+  destroy() { 
+    MemoryUtils.disposeObject(this.particles);
+    MemoryUtils.disposeObject(this.filaments);
+    MemoryUtils.disposeObject(this.scene);
+    this.particles = null;
+    this.filaments = null;
+    this.scene.clear(); 
+  }
 }

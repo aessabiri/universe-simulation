@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
+import { MemoryUtils } from '../MemoryUtils';
 
 export class StellarDawnStage extends Stage {
   private nebulaGroup: THREE.Group = new THREE.Group();
@@ -145,7 +146,13 @@ export class StellarDawnStage extends Stage {
   }
 
   destroy() {
-    this.cachedTextures.forEach(t => t.dispose());
+    this.cachedTextures.forEach(t => MemoryUtils.disposeTexture(t));
+    this.cachedTextures = [];
+    MemoryUtils.disposeObject(this.nebulaGroup);
+    MemoryUtils.disposeObject(this.firstStars);
+    MemoryUtils.disposeObject(this.staticStars);
+    MemoryUtils.disposeObject(this.protoStars);
+    MemoryUtils.disposeObject(this.scene);
     this.scene.clear();
   }
 }

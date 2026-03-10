@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
+import { MemoryUtils } from '../MemoryUtils';
 import { GalaxyVertexShader, GalaxyFragmentShader } from '../shaders/GalaxyShaders';
 
 export class GalaxyStage extends Stage {
@@ -164,5 +165,17 @@ export class GalaxyStage extends Stage {
     }
   }
 
-  destroy() { this.scene.clear(); }
+  destroy() {
+    MemoryUtils.disposeObject(this.galaxyGroup);
+    MemoryUtils.disposeObject(this.stars);
+    MemoryUtils.disposeObject(this.bulge);
+    MemoryUtils.disposeObject(this.dust);
+    MemoryUtils.disposeObject(this.nebulae);
+    MemoryUtils.disposeObject(this.scene);
+    this.stars = null;
+    this.bulge = null;
+    this.dust = null;
+    this.nebulae = null;
+    this.scene.clear();
+  }
 }
