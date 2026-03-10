@@ -17,9 +17,9 @@ export class GalaxyStage extends Stage {
     const config = {
       radius: 25,
       branches: 3,
-      spin: 3.0, // Increased from 1.8 for tighter spiral
-      randomness: 0.08, // Reduced from 0.15 for more defined arms
-      randomnessPower: 5.0, // Increased power for sharper concentration
+      spin: 4.5, // Increased from 3.0 for much more pronounced spirals
+      randomness: 0.06, // Even tighter concentration
+      randomnessPower: 6.0, // Sharper arm edges
       coreRadius: 4
     };
 

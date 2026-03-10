@@ -4,22 +4,47 @@ import { SimulationManager, Epoch } from './simulation/SimulationManager';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
   <div id="canvas-container"></div>
-  <div id="ui">
-    <h1>Cosmic Journey</h1>
-    <div class="controls">
-      <button id="btn-bigbang">Big Bang</button>
-      <button id="btn-plasma">Plasma</button>
-      <button id="btn-stellardawn">First Stars</button>
-      <button id="btn-galaxy">Galaxy</button>
-      <button id="btn-solar">Solar System</button>
-      <button id="btn-earth">Earth</button>
+  
+  <!-- NEW TOP TIMELINE -->
+  <div id="timeline-hud">
+    <div class="timeline-track">
+      <div id="timeline-progress"></div>
+      <div class="epoch-marker" style="left: 0%" data-epoch="BIG_BANG" title="0s"></div>
+      <div class="epoch-marker" style="left: 15%" data-epoch="PLASMA" title="1ms"></div>
+      <div class="epoch-marker" style="left: 35%" data-epoch="STELLAR_DAWN" title="100My"></div>
+      <div class="epoch-marker" style="left: 55%" data-epoch="GALAXY_FORMATION" title="1By"></div>
+      <div class="epoch-marker" style="left: 75%" data-epoch="SOLAR_SYSTEM" title="9By"></div>
+      <div class="epoch-marker" style="left: 95%" data-epoch="EARTH" title="13.8By"></div>
     </div>
-    <div id="description">The Singularity expands into space-time.</div>
+    <div id="timeline-label">13.8 Billion Years of Cosmic History</div>
   </div>
+
+  <!-- NEW INFO PANEL -->
+  <div id="info-hud">
+    <div id="info-header">
+      <span id="epoch-tag">EPOCH</span>
+      <h2 id="epoch-name">Big Bang</h2>
+    </div>
+    <div id="info-body">
+      <p id="epoch-desc">The universe begins as a singularity, expanding rapidly in an event known as inflation.</p>
+    </div>
+    <div id="info-stats">
+      <div class="stat-item">
+        <span class="stat-label">TIME</span>
+        <span id="stat-time" class="stat-value">T + 0s</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">TEMP</span>
+        <span id="stat-temp" class="stat-value">10^32 K</span>
+      </div>
+    </div>
+  </div>
+
   <div id="planet-menu" style="display: none;">
     <div id="menu-header" class="menu-header">Celestial Bodies</div>
     <div id="sub-controls"></div>
   </div>
+
   <div id="planet-popup" style="display: none;">
     <h2 id="popup-title"></h2>
     <p id="popup-info"></p>
@@ -32,16 +57,90 @@ app.innerHTML = `
 const container = document.querySelector<HTMLDivElement>('#canvas-container')!;
 const manager = new SimulationManager(container);
 
+// Epoch Content Database
+const epochInfo: Record<string, any> = {
+  BIG_BANG: {
+    name: "The Big Bang",
+    time: "T + 0 Seconds",
+    temp: "10^32 Kelvin",
+    desc: "Space, time, and matter erupt from a singularity. The universe expands faster than light during cosmic inflation."
+  },
+  PLASMA: {
+    name: "Quark-Gluon Plasma",
+    time: "T + 1 Microsecond",
+    temp: "10^13 Kelvin",
+    desc: "A chaotic, ultra-hot soup of fundamental particles. Protons and neutrons haven't even formed yet."
+  },
+  STELLAR_DAWN: {
+    name: "Stellar Dawn",
+    time: "T + 100 Million Years",
+    temp: "60 Kelvin",
+    desc: "Gravity pulls primordial gas together to ignite the very first stars, ending the Cosmic Dark Ages."
+  },
+  GALAXY_FORMATION: {
+    name: "Galaxy Formation",
+    time: "T + 1 Billion Years",
+    temp: "20 Kelvin",
+    desc: "Gigantic clusters of stars and gas collapse into the majestic spiral and elliptical structures we see today."
+  },
+  SOLAR_SYSTEM: {
+    name: "The Solar System",
+    time: "T + 9 Billion Years",
+    temp: "2.7 Kelvin (Avg)",
+    desc: "A cloud of dust and gas collapses around a young star—our Sun—forming a protoplanetary disk."
+  },
+  EARTH: {
+    name: "Planet Earth",
+    time: "T + 13.8 Billion Years",
+    temp: "288 Kelvin",
+    desc: "Our home planet today. A lush blue marble teeming with complex life and a protective atmosphere."
+  }
+};
+
+const progress = document.getElementById('timeline-progress')!;
+const epochName = document.getElementById('epoch-name')!;
+const epochDesc = document.getElementById('epoch-desc')!;
+const statTime = document.getElementById('stat-time')!;
+const statTemp = document.getElementById('stat-temp')!;
+const popup = document.getElementById('planet-popup')!;
 const subControls = document.getElementById('sub-controls')!;
 const planetMenu = document.getElementById('planet-menu')!;
 const menuHeader = document.getElementById('menu-header')!;
-const popup = document.getElementById('planet-popup')!;
-const popupTitle = document.getElementById('popup-title')!;
-const popupInfo = document.getElementById('popup-info')!;
-const popupComp = document.getElementById('popup-comp')!;
-const popupTemp = document.getElementById('popup-temp')!;
-const popupAtmo = document.getElementById('popup-atmo')!;
-const desc = document.getElementById('description')!;
+
+function updateHUD(key: string) {
+    const info = epochInfo[key];
+    epochName.innerText = info.name;
+    epochDesc.innerText = info.desc;
+    statTime.innerText = info.time;
+    statTemp.innerText = info.temp;
+    
+    // Animate HUD
+    const hud = document.getElementById('info-hud')!;
+    hud.classList.remove('hud-pulse');
+    void hud.offsetWidth; // Trigger reflow
+    hud.classList.add('hud-pulse');
+}
+
+// Timeline Markers
+document.querySelectorAll('.epoch-marker').forEach(marker => {
+    marker.addEventListener('click', (e) => {
+        const el = e.target as HTMLElement;
+        
+        // Update active marker state
+        document.querySelectorAll('.epoch-marker').forEach(m => m.classList.remove('active'));
+        el.classList.add('active');
+
+        const key = el.dataset.epoch!;
+        progress.style.width = el.style.left;
+        manager.setEpoch((Epoch as any)[key]);
+        updateHUD(key);
+        
+        // Contextual Controls
+        if (key === 'SOLAR_SYSTEM') showSolarSystemControls();
+        else if (key === 'EARTH') showEarthControls();
+        else hideSubControls();
+    });
+});
 
 manager.onUpdate(() => {
   if (popup.style.display === 'block') {
@@ -88,11 +187,11 @@ function showSolarSystemControls() {
         const stage = manager.getCurrentStage() as any;
         if (stage && stage.planets) {
             const planetData = stage.planets[idx];
-            popupTitle.innerText = planetData.name;
-            popupInfo.innerText = planetData.info;
-            popupComp.innerText = planetData.composition;
-            popupTemp.innerText = planetData.temperature;
-            popupAtmo.innerText = planetData.atmosphere;
+            document.getElementById('popup-title')!.innerText = planetData.name;
+            document.getElementById('popup-info')!.innerText = planetData.info;
+            document.getElementById('popup-comp')!.innerText = planetData.composition;
+            document.getElementById('popup-temp')!.innerText = planetData.temperature;
+            document.getElementById('popup-atmo')!.innerText = planetData.atmosphere;
             popup.style.display = 'block';
         }
       } else {
@@ -124,22 +223,3 @@ function showEarthControls() {
     });
   });
 }
-
-document.getElementById('btn-bigbang')?.addEventListener('click', () => {
-  manager.setEpoch(Epoch.BIG_BANG); hideSubControls(); desc.innerText = 'The Singularity expands into space-time.';
-});
-document.getElementById('btn-plasma')?.addEventListener('click', () => {
-  manager.setEpoch(Epoch.PLASMA); hideSubControls(); desc.innerText = 'Quark-Gluon Plasma: A hot soup of fundamental particles.';
-});
-document.getElementById('btn-stellardawn')?.addEventListener('click', () => {
-  manager.setEpoch(Epoch.STELLAR_DAWN); hideSubControls(); desc.innerText = 'Stellar Dawn: The first massive stars ignite inside iridescent nebulas.';
-});
-document.getElementById('btn-galaxy')?.addEventListener('click', () => {
-  manager.setEpoch(Epoch.GALAXY_FORMATION); hideSubControls(); desc.innerText = 'Gravity pulls matter into cosmic filaments and galaxies.';
-});
-document.getElementById('btn-solar')?.addEventListener('click', () => {
-  manager.setEpoch(Epoch.SOLAR_SYSTEM); showSolarSystemControls(); desc.innerText = 'A Protoplanetary Disk forms around a young Sun.';
-});
-document.getElementById('btn-earth')?.addEventListener('click', () => {
-  manager.setEpoch(Epoch.EARTH); showEarthControls(); desc.innerText = 'Earth: A lush, blue marble with dynamic clouds and a protective atmosphere.';
-});

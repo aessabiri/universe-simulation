@@ -101,7 +101,7 @@ export class SimulationManager {
         this.currentStage = new StellarDawnStage(this.scene, this.camera, this.container);
         break;
       case Epoch.GALAXY_FORMATION:
-        this.controls.minDistance = 5;
+        this.controls.minDistance = 12; // Increased from 5 to prevent zooming into the core too much
         this.controls.maxDistance = 500;
         this.currentStage = new GalaxyStage(this.scene, this.camera, this.container);
         break;
@@ -152,6 +152,8 @@ export class SimulationManager {
       const target = this.currentStage.getFocusTarget();
       if (target) {
         this.controls.target.lerp(target, 0.1);
+      } else {
+        this.controls.target.set(0, 0, 0); // Keep centered for non-focus stages like Big Bang
       }
     }
     this.controls.update();
