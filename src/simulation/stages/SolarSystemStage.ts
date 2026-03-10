@@ -24,6 +24,7 @@ interface PlanetData {
   composition: string;
   temperature: string;
   atmosphere: string;
+  scanData: { o2: number, h2o: number, carbon: number };
 }
 
 export class SolarSystemStage extends Stage {
@@ -39,75 +40,75 @@ export class SolarSystemStage extends Stage {
   private targetVector = new THREE.Vector3();
   private timeUniform = { value: 0 };
 
-  private planets: PlanetData[] = [
+  public planets: PlanetData[] = [
     { 
       name: 'Mercury', radius: 0.5, distance: 15, speed: 1.6, color: 0xffaa88, tilt: 0, 
-      info: "The smallest planet and closest to the Sun.",
-      composition: "70% metallic and 30% silicate material.",
-      temperature: "430°C (Day), -180°C (Night)",
-      atmosphere: "Thin exosphere (Oxygen, Sodium, Hydrogen)."
+      info: "Smallest planet, closest to the Sun.",
+      composition: "70% metallic, 30% silicate.",
+      temperature: "430°C / -180°C",
+      atmosphere: "Exosphere.",
+      scanData: { o2: 0.1, h2o: 0, carbon: 0 }
     },
     { 
       name: 'Venus', radius: 0.8, distance: 25, speed: 1.1, color: 0xffdd44, tilt: 0.05, 
-      info: "Earth's twin in size with a runaway greenhouse effect.",
-      composition: "Central iron core and rocky mantle.",
-      temperature: "462°C (Average)",
-      atmosphere: "96% Carbon Dioxide, 3% Nitrogen."
+      info: "Toxic, super-hot atmosphere.",
+      composition: "Iron core, rocky mantle.",
+      temperature: "462°C",
+      atmosphere: "CO2, Nitrogen.",
+      scanData: { o2: 0, h2o: 0.1, carbon: 96 }
     },
     { 
       name: 'Earth', radius: 0.9, distance: 35, speed: 1.0, color: 0x0088ff, tilt: 0.4, 
       moons: [{ name: 'Moon', radius: 0.15, distance: 1.8, speed: 2, color: 0xaaaaaa }], 
-      info: "The only known planet with liquid water and life.",
-      composition: "Iron core, silicate mantle and crust.",
-      temperature: "15°C (Average)",
-      atmosphere: "78% Nitrogen, 21% Oxygen."
+      info: "Liquid water and life.",
+      composition: "Iron core, silicate mantle.",
+      temperature: "15°C",
+      atmosphere: "Nitrogen, Oxygen.",
+      scanData: { o2: 21, h2o: 85, carbon: 0.04 }
     },
     { 
       name: 'Mars', radius: 0.6, distance: 45, speed: 0.8, color: 0xff4400, tilt: 0.44, 
-      moons: [
-        { name: 'Phobos', radius: 0.08, distance: 1.2, speed: 3, color: 0x888888 }, 
-        { name: 'Deimos', radius: 0.06, distance: 1.5, speed: 2.5, color: 0x999999 }
-      ], 
-      info: "The Red Planet, home to the largest volcanoes in the system.",
-      composition: "Silicon, oxygen, iron, and magnesium.",
-      temperature: "-65°C (Average)",
-      atmosphere: "95% Carbon Dioxide, 2.7% Nitrogen."
+      moons: [{ name: 'Phobos', radius: 0.08, distance: 1.2, speed: 3, color: 0x888888 }, { name: 'Deimos', radius: 0.06, distance: 1.5, speed: 2.5, color: 0x999999 }], 
+      info: "The Red Planet.",
+      composition: "Silicon, iron, magnesium.",
+      temperature: "-65°C",
+      atmosphere: "CO2, Nitrogen.",
+      scanData: { o2: 0.13, h2o: 0.03, carbon: 95 }
     },
     { 
       name: 'Jupiter', radius: 2.5, distance: 75, speed: 0.4, color: 0xffaa33, tilt: 0.05, 
-      moons: [
-        { name: 'Io', radius: 0.15, distance: 3.5, speed: 2.0, color: 0xffcc00 }, 
-        { name: 'Europa', radius: 0.14, distance: 4.2, speed: 1.6, color: 0xdddddd }, 
-        { name: 'Ganymede', radius: 0.22, distance: 5.2, speed: 1.2, color: 0x998877 }, 
-        { name: 'Callisto', radius: 0.2, distance: 6.2, speed: 0.8, color: 0x777777 }
-      ], 
-      info: "The King of Planets, a gas giant with a Great Red Spot.",
-      composition: "89% Hydrogen, 10% Helium.",
-      temperature: "-110°C (Average)",
-      atmosphere: "Hydrogen, Helium, Methane, Ammonia."
+      moons: [{ name: 'Io', radius: 0.15, distance: 3.5, speed: 2.0, color: 0xffcc00 }, { name: 'Europa', radius: 0.14, distance: 4.2, speed: 1.6, color: 0xdddddd }, { name: 'Ganymede', radius: 0.22, distance: 5.2, speed: 1.2, color: 0x998877 }, { name: 'Callisto', radius: 0.2, distance: 6.2, speed: 0.8, color: 0x777777 }], 
+      info: "Largest planet.",
+      composition: "Hydrogen, Helium.",
+      temperature: "-110°C",
+      atmosphere: "Hydrogen, Helium.",
+      scanData: { o2: 0, h2o: 0.1, carbon: 0.1 }
     },
     { 
       name: 'Saturn', radius: 2.2, distance: 105, speed: 0.3, color: 0xffcc88, tilt: 0.4, hasRings: true, 
       moons: [{ name: 'Titan', radius: 0.25, distance: 4.5, speed: 1.2, color: 0xffaa00 }], 
-      info: "Famous for its spectacular ring system made of ice.",
-      composition: "96% Hydrogen, 3% Helium.",
-      temperature: "-140°C (Average)",
-      atmosphere: "Hydrogen, Helium, Methane."
+      info: "Spectacular ring system.",
+      composition: "Hydrogen, Helium.",
+      temperature: "-140°C",
+      atmosphere: "Hydrogen, Helium.",
+      scanData: { o2: 0, h2o: 0.1, carbon: 0.1 }
     },
     { 
       name: 'Uranus', radius: 1.4, distance: 140, speed: 0.2, color: 0x00ffff, tilt: 1.7, 
-      info: "An ice giant that orbits the Sun on its side.",
-      composition: "Ices (Water, Ammonia, Methane).",
-      temperature: "-195°C (Average)",
-      atmosphere: "Hydrogen, Helium, Methane."
+      info: "Ice giant.",
+      composition: "Ices, Hydrogen.",
+      temperature: "-195°C",
+      atmosphere: "Hydrogen, Helium.",
+      scanData: { o2: 0, h2o: 0.5, carbon: 0.1 }
     },
     { 
       name: 'Neptune', radius: 1.4, distance: 175, speed: 0.15, color: 0x3366ff, tilt: 0.5, 
       moons: [{ name: 'Triton', radius: 0.2, distance: 3.2, speed: 1.5, color: 0xccbb99 }], 
-      info: "Known for its deep blue color and supersonic winds.",
-      composition: "80% Hydrogen, 19% Helium, 1.5% Methane.",
-      temperature: "-201°C (Average)",
-      atmosphere: "Hydrogen, Helium, Methane."
+      info: "Distant ice giant.",
+      composition: "Hydrogen, Helium.",
+      temperature: "-201°C",
+      atmosphere: "Hydrogen, Helium.",
+      scanData: { o2: 0, h2o: 0.5, carbon: 0.1 }
     }
   ];
 
@@ -204,7 +205,7 @@ export class SolarSystemStage extends Stage {
         p.moons.forEach(m => {
           const moonPivot = new THREE.Group();
           planetGroup.add(moonPivot);
-          const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(m.radius, 16, 16), new THREE.MeshStandardMaterial({ color: m.color, roughness: 0.9 }));
+          const moonMesh = new THREE.Mesh(new THREE.SphereGeometry(m.radius, 16, 16), new THREE.MeshStandardMaterial({ color: m.color, roughness: 0.9, emissive: new THREE.Color(m.color), emissiveIntensity: 0.05 }));
           moonMesh.position.set(m.distance, 0, 0);
           moonPivot.add(moonMesh);
           this.moonMeshes.push({ mesh: moonMesh, pivot: moonPivot, speed: m.speed, distance: m.distance });
@@ -225,7 +226,7 @@ export class SolarSystemStage extends Stage {
   }
 
   private createBelt(minR: number, maxR: number, count: number, size: number, color: number): THREE.InstancedMesh {
-    const mesh = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(size, 0), new THREE.MeshStandardMaterial({ color: color, roughness: 0.9 }), count);
+    const mesh = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(size, 0), new THREE.MeshStandardMaterial({ color: color, roughness: 0.9, metalness: 0.1, emissive: color, emissiveIntensity: 0.05 }), count);
     for (let i = 0; i < count; i++) {
       const r = minR + Math.random() * (maxR - minR);
       const theta = Math.random() * Math.PI * 2;
@@ -236,6 +237,7 @@ export class SolarSystemStage extends Stage {
       this.dummy.updateMatrix();
       mesh.setMatrixAt(i, this.dummy.matrix);
     }
+    mesh.instanceMatrix.needsUpdate = true;
     return mesh;
   }
 

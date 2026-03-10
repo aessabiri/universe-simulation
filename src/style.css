@@ -16,6 +16,53 @@ body {
 
 #canvas-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
 
+/* --- COCKPIT HUD --- */
+#cockpit-hud {
+  position: absolute;
+  top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 200;
+  border: 40px solid transparent;
+  box-sizing: border-box;
+}
+
+.hud-corner {
+  position: absolute;
+  width: 100px; height: 100px;
+  border: 2px solid var(--accent);
+  opacity: 0.4;
+}
+
+.top-left { top: 0; left: 0; border-right: none; border-bottom: none; }
+.top-right { top: 0; right: 0; border-left: none; border-bottom: none; }
+.bottom-left { bottom: 0; left: 0; border-right: none; border-top: none; }
+.bottom-right { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+#scanning-reticle {
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px; height: 200px;
+  display: none; /* Only show when scanning */
+}
+
+.reticle-circle {
+  width: 100%; height: 100%;
+  border: 1px dashed var(--accent);
+  border-radius: 50%;
+  animation: rotate 10s linear infinite;
+}
+
+.reticle-line {
+  position: absolute;
+  top: 50%; left: 0; width: 100%; height: 1px;
+  background: linear-gradient(to right, transparent, var(--accent), transparent);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+@keyframes pulse { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
 /* --- TIMELINE HUD --- */
 #timeline-hud {
   position: absolute;
@@ -153,3 +200,68 @@ body {
 #popup-info { font-size: 0.75rem; line-height: 1.4; opacity: 0.8; margin-bottom: 0.8rem; }
 .stat-row { font-size: 0.65rem; margin-bottom: 0.3rem; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 0.2rem; }
 .stat-row strong { color: var(--accent); margin-right: 4px; }
+
+/* --- SCANNER HUD --- */
+#scanner-hud {
+  margin-top: 1.5rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--border-glass);
+}
+
+.scanner-header {
+  font-size: 0.6rem;
+  letter-spacing: 0.2rem;
+  margin-bottom: 1rem;
+  color: var(--accent);
+}
+
+.scan-bar {
+  background: rgba(255, 255, 255, 0.05);
+  height: 12px;
+  border-radius: 6px;
+  margin-bottom: 0.8rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.scan-fill {
+  height: 100%;
+  background: linear-gradient(to right, var(--accent), #00ff88);
+  transition: width 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.scan-bar span {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 0.5rem;
+  font-weight: 800;
+  color: white;
+}
+
+#habitability-score {
+  font-size: 0.9rem;
+  font-weight: 800;
+  margin: 1rem 0;
+  text-align: center;
+}
+
+#btn-deploy-seed {
+  background: #00ff88;
+  color: black;
+  border: none;
+  width: 100%;
+  padding: 0.8rem;
+  font-weight: 800;
+  font-size: 0.7rem;
+  border-radius: 4px;
+  cursor: pointer;
+  letter-spacing: 0.1rem;
+  transition: transform 0.2s;
+}
+
+#btn-deploy-seed:hover {
+  transform: scale(1.05);
+  background: white;
+}
