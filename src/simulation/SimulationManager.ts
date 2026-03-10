@@ -87,7 +87,7 @@ export class SimulationManager {
     switch (epoch) {
       case Epoch.BIG_BANG:
         this.controls.minDistance = 2;
-        this.controls.maxDistance = 50; // Keep inside the expansion
+        this.controls.maxDistance = 30; // Reduced to keep user strictly inside the plasma
         this.currentStage = new BigBangStage(this.scene, this.camera, this.container);
         break;
       case Epoch.PLASMA:

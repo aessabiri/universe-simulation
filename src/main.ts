@@ -22,9 +22,8 @@ app.innerHTML = `
     <div class="timeline-track">
       <div id="timeline-progress"></div>
       <div class="epoch-marker active" style="left: 0%" data-epoch="BIG_BANG" title="0s"></div>
-      <div class="epoch-marker" style="left: 15%" data-epoch="PLASMA" title="1ms"></div>
-      <div class="epoch-marker" style="left: 35%" data-epoch="STELLAR_DAWN" title="100My"></div>
-      <div class="epoch-marker" style="left: 55%" data-epoch="GALAXY_FORMATION" title="1By"></div>
+      <div class="epoch-marker" style="left: 25%" data-epoch="STELLAR_DAWN" title="100My"></div>
+      <div class="epoch-marker" style="left: 50%" data-epoch="GALAXY_FORMATION" title="1By"></div>
       <div class="epoch-marker" style="left: 75%" data-epoch="SOLAR_SYSTEM" title="9By"></div>
       <div class="epoch-marker" style="left: 95%" data-epoch="EARTH" title="13.8By"></div>
     </div>
@@ -34,8 +33,7 @@ app.innerHTML = `
   <div id="ui">
     <h1>Cosmic Journey</h1>
     <div class="controls">
-      <button id="btn-bigbang">Big Bang</button>
-      <button id="btn-plasma">Plasma</button>
+      <button id="btn-bigbang">Origin</button>
       <button id="btn-stellardawn">First Stars</button>
       <button id="btn-galaxy">Galaxy</button>
       <button id="btn-solar">Solar System</button>
@@ -243,8 +241,9 @@ document.querySelectorAll('.epoch-marker').forEach(marker => {
     });
 });
 
-document.getElementById('btn-bigbang')?.addEventListener('click', () => { syncEpoch('BIG_BANG', '0%'); desc.innerText = 'The Singularity expands into space-time.'; });
-document.getElementById('btn-plasma')?.addEventListener('click', () => { syncEpoch('PLASMA', '15%'); desc.innerText = 'Quark-Gluon Plasma: A hot soup of fundamental particles.'; });
+document.getElementById('btn-bigbang')?.addEventListener('click', () => {
+  syncEpoch('BIG_BANG', '0%'); desc.innerText = 'The Origin: From the singularity to the cooling plasma soup.';
+});
 document.getElementById('btn-stellardawn')?.addEventListener('click', () => { syncEpoch('STELLAR_DAWN', '35%'); desc.innerText = 'Stellar Dawn: The first massive stars ignite.'; });
 document.getElementById('btn-galaxy')?.addEventListener('click', () => { syncEpoch('GALAXY_FORMATION', '55%'); desc.innerText = 'Gravity pulls matter into galaxies.'; });
 document.getElementById('btn-solar')?.addEventListener('click', () => { syncEpoch('SOLAR_SYSTEM', '75%'); desc.innerText = 'Sun and protoplanetary disk form.'; });
