@@ -264,21 +264,30 @@ export class BigBangStage extends Stage {
 
         this.uniforms.beaconIntensity.value = 0.8;
 
-        // Reveal fractal and core
-        if (dot > 0.9) {
-            this.discoveryFactor += delta * 0.5;
+        // Reveal fractal and core based on proximity AND alignment
+        const proximity = Math.max(0, 1.0 - dist / 150.0);
+        if (dot > 0.8) {
+            this.discoveryFactor += delta * (0.5 + proximity);
         } else {
             this.discoveryFactor = Math.max(0, this.discoveryFactor - delta * 0.2);
         }
-        this.uniforms.discoveryFactor.value = this.discoveryFactor;
-        this.uniforms.coreIntensity.value = this.discoveryFactor;
+        this.uniforms.discoveryFactor.value = Math.min(1.0, this.discoveryFactor);
+        
+        // Base core intensity from discovery
+        let finalCoreInt = this.discoveryFactor;
 
-        // NEW LOGIC: Reach the core and stay for 1 second
-        if (dist < 8) {
+        // ACTIVATION LOGIC: Reach the core and stay for 1 second
+        if (dist < 15) { // Increased radius
             if (!this.isActivating) {
                 this.isActivating = true;
                 this.activationTime = time;
-            } else if ((time - this.activationTime) > 1000) {
+            }
+            
+            const activationProgress = (time - this.activationTime) / 1000;
+            // Visual feedback: core glows white-hot as you activate it
+            finalCoreInt = 1.0 + activationProgress * 10.0;
+
+            if (activationProgress > 1.0) {
                 // ACTIVATED!
                 this.isSearching = false;
                 this.eventStartTime = time;
@@ -287,6 +296,7 @@ export class BigBangStage extends Stage {
         } else {
             this.isActivating = false;
         }
+        this.uniforms.coreIntensity.value = finalCoreInt;
     } else {
         // CINEMATIC TRANSITION
         const elapsed = (time - this.eventStartTime) * 0.001;
