@@ -24,13 +24,16 @@ export class BigBangStage extends Stage {
   private eventStartTime = 0;
   private particleCount = 60000;
 
-  // Controls (Improved)
+  // Controls (Joystick Style - No Pointer Lock needed)
   private yaw = 0;
   private pitch = 0;
+  private mouseX = 0; // -1 to 1
+  private mouseY = 0; // -1 to 1
   private velocity = new THREE.Vector3();
   private keys: Record<string, boolean> = {};
-  private moveSpeed = 40.0; // Higher speed for discovery
-  private friction = 0.92;
+  private moveSpeed = 60.0; 
+  private friction = 0.95;
+  private rotationSpeed = 2.5;
 
   private uniforms = {
     time: { value: 0 },
@@ -49,7 +52,7 @@ export class BigBangStage extends Stage {
     
     // 1. Abstract Void
     this.voidSkybox = new THREE.Mesh(
-        new THREE.SphereGeometry(300, 32, 32),
+        new THREE.SphereGeometry(400, 32, 32),
         new THREE.ShaderMaterial({
             uniforms: this.uniforms,
             vertexShader: AbstractVoidVertexShader,
@@ -70,16 +73,16 @@ export class BigBangStage extends Stage {
             depthWrite: false
         })
     );
-    // Random position far away
+    // Random position
     const phi = Math.random() * Math.PI * 2;
     const theta = Math.acos(2 * Math.random() - 1);
-    this.multiverseSphere.position.setFromSphericalCoords(150, theta, phi);
+    this.multiverseSphere.position.setFromSphericalCoords(180, theta, phi);
     this.scene.add(this.multiverseSphere);
 
-    // 3. Guidance Beacon (The Hint)
+    // 3. Guidance Beacon
     const beaconGeo = new THREE.CylinderGeometry(0.1, 0.1, 1, 8);
-    beaconGeo.rotateX(Math.PI * 0.5); // Point forward
-    beaconGeo.translate(0, 0, -0.5); // Origin at back
+    beaconGeo.rotateX(Math.PI * 0.5);
+    beaconGeo.translate(0, 0, -0.5);
     this.beacon = new THREE.Mesh(
         beaconGeo,
         new THREE.ShaderMaterial({
@@ -200,14 +203,9 @@ export class BigBangStage extends Stage {
 
   private onMouseMove = (e: MouseEvent) => {
     if (!this.isSearching) return;
-    
-    // Smooth relative steering
-    const movementX = e.movementX || 0;
-    const movementY = e.movementY || 0;
-    
-    this.yaw -= movementX * 0.003;
-    this.pitch -= movementY * 0.003;
-    this.pitch = Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, this.pitch));
+    // Joystick style: mapping cursor position to rotation velocity
+    this.mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+    this.mouseY = (e.clientY / window.innerHeight) * 2 - 1;
   };
 
   private onKeyDown = (e: KeyboardEvent) => { this.keys[e.code.toLowerCase()] = true; };
@@ -218,7 +216,15 @@ export class BigBangStage extends Stage {
     this.uniforms.time.value = time * 0.001;
 
     if (this.isSearching) {
-        // 1. ROTATION
+        // 1. ROTATION (Joystick Logic)
+        // Deadzone check
+        const dz = 0.1;
+        const rx = Math.abs(this.mouseY) > dz ? (this.mouseY - Math.sign(this.mouseY)*dz) : 0;
+        const ry = Math.abs(this.mouseX) > dz ? (this.mouseX - Math.sign(this.mouseX)*dz) : 0;
+        
+        this.pitch -= rx * delta * this.rotationSpeed;
+        this.yaw -= ry * delta * this.rotationSpeed;
+        this.pitch = Math.max(-Math.PI * 0.45, Math.min(Math.PI * 0.45, this.pitch));
         this.camera.rotation.set(this.pitch, this.yaw, 0, 'YXZ');
 
         // 2. MOVEMENT
@@ -236,22 +242,19 @@ export class BigBangStage extends Stage {
         this.velocity.multiplyScalar(this.friction);
         this.camera.position.add(this.velocity);
 
-        // 3. HINT & DISCOVERY
+        // 3. GUIDANCE
         const spherePos = this.multiverseSphere!.position;
         const dirToSphere = spherePos.clone().sub(this.camera.position).normalize();
-        
-        // Point beacon at sphere
         this.beacon!.lookAt(spherePos);
-        this.beacon!.scale.setScalar(5); // Make it visible size
         
         const viewDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
         const dot = viewDir.dot(dirToSphere);
         const dist = this.camera.position.distanceTo(spherePos);
 
-        // Beacon is brighter when looking AWAY (to provide hint)
+        // Beacon intensity logic
         this.uniforms.beaconIntensity.value = (1.0 - Math.max(0, dot)) * 0.8;
 
-        if (dot > 0.96 && dist < 80) {
+        if (dot > 0.96 && dist < 100) {
             this.discoveryFactor += delta * 0.8;
         } else {
             this.discoveryFactor = Math.max(0, this.discoveryFactor - delta * 0.2);
@@ -264,6 +267,7 @@ export class BigBangStage extends Stage {
             this.beacon!.visible = false;
         }
     } else {
+        // CINEMATIC
         const elapsed = (time - this.eventStartTime) * 0.001;
         if (elapsed < 4.0) {
             const p = elapsed / 4.0;
