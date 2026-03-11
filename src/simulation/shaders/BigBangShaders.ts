@@ -68,36 +68,41 @@ export const MultiverseFragmentShader = `
   varying vec3 vViewDir;
   varying vec3 vPosition;
 
-  float hash(float n) { return fract(sin(n) * 43758.5453123); }
-  float noise(vec3 x) {
-    vec3 p = floor(x);
-    vec3 f = fract(x);
-    f = f*f*(3.0-2.0*f);
-    float n = p.x + p.y*57.0 + 113.0*p.z;
-    return mix(mix(mix( hash(n+  0.0), hash(n+  1.0),f.x),
-                   mix( hash(n+ 57.0), hash(n+ 58.0),f.x),f.y),
-               mix(mix(hash(n+113.0), hash(n+114.0),f.x),
-                   mix(hash(n+170.0), hash(n+171.0),f.x),f.y),f.z);
-  }
-
+  // HD Mandelbulb DE
   float map(vec3 p) {
     vec3 z = p;
     float dr = 1.0;
     float r = 0.0;
-    float power = 8.0 + sin(time * 0.2) * 2.0;
-    for (int i = 0; i < 8; i++) {
+    
+    // Smooth power oscillation for HD breathing
+    float power = 8.0 + 2.0 * sin(time * 0.15);
+    
+    for (int i = 0; i < 10; i++) { // Increased iterations
         r = length(z);
         if (r > 2.0) break;
+        
         float theta = acos(z.z / r);
         float phi = atan(z.y, z.x);
         dr = pow(r, power - 1.0) * power * dr + 1.0;
+        
         float zr = pow(r, power);
         theta = theta * power;
         phi = phi * power;
+        
         z = zr * vec3(sin(theta) * cos(phi), sin(phi) * sin(theta), cos(theta));
         z += p;
     }
     return 0.5 * log(r) * r / dr;
+  }
+
+  // Precision Normals
+  vec3 getNormal(vec3 p) {
+    vec2 e = vec2(0.0005, 0.0);
+    return normalize(vec3(
+        map(p + e.xyy) - map(p - e.xyy),
+        map(p + e.yxy) - map(p - e.yxy),
+        map(p + e.yyx) - map(p - e.yyx)
+    ));
   }
 
   void main() {
@@ -108,39 +113,42 @@ export const MultiverseFragmentShader = `
 
     vec3 ro = vec3(0.0, 0.0, 2.5) - vec3(0.0, 0.0, collapseFocus * 2.45); 
     
+    // HD Raymarching loop
     float t = 0.0;
     float maxD = 10.0;
-    for (int i = 0; i < 128; i++) {
+    int steps = 0;
+    for (int i = 0; i < 160; i++) { // Increased steps
         vec3 p = ro + rd * t;
         float d = map(p);
-        if (d < 0.0001 || t > maxD) break;
+        if (d < 0.0002 || t > maxD) break;
         t += d;
+        steps = i;
     }
 
     vec3 col = vec3(0.0);
     if (t < maxD) {
         vec3 p = ro + rd * t;
-        vec3 baseCol = 0.5 + 0.5 * cos(time * 0.8 + p.xyx * 3.0 + vec3(0, 2, 4));
-        col = baseCol;
-        col += vec3(0.5, 0.0, 1.0) * (1.0 / (t * t + 0.5)) * energyIntensity;
+        vec3 n = getNormal(p);
+        vec3 lightPos = vec3(5.0 * sin(time), 5.0, 5.0 * cos(time));
+        vec3 l = normalize(lightPos - p);
+        
+        // HD Shading: Diffuse + Specular + Ambient Occlusion (approx)
+        float diff = max(dot(n, l), 0.0);
+        float spec = pow(max(dot(reflect(-l, n), -rd), 0.0), 32.0);
+        float ao = 1.0 - float(steps) / 160.0;
+        
+        // Color based on position and depth
+        vec3 baseCol = 0.5 + 0.5 * cos(time * 0.5 + p.xyx * 2.0 + vec3(0, 2, 4));
+        vec3 orbitCol = vec3(0.8, 0.4, 1.0) * (sin(length(p) * 10.0 - time) * 0.5 + 0.5);
+        
+        col = (baseCol * diff + spec + orbitCol * 0.3) * ao;
+        
+        // Energy radiance glow
+        col += vec3(0.2, 0.6, 1.0) * energyIntensity * (1.0 / (t + 0.1));
     }
 
-    // Removed background nebula logic for "Pure" Mandelbulb in black space
-    
-    vec3 pNorm = normalize(vPosition);
-    float filamentCount = 12.0;
-    for(float i = 0.0; i < filamentCount; i++) {
-        float radialAngle = (i / filamentCount) * 6.28318 + time * 0.5;
-        vec3 dir = vec3(cos(radialAngle), sin(radialAngle), sin(radialAngle * 2.0));
-        float dLine = length(pNorm - dir * dot(pNorm, dir));
-        float distortion = noise(pNorm * 5.0 + time * 2.0) * 0.1;
-        dLine += distortion;
-        float flow = sin(dot(pNorm, dir) * 10.0 - time * 20.0) * 0.5 + 0.5;
-        float lineIntensity = smoothstep(0.05, 0.0, dLine) * flow * energyIntensity;
-        col += vec3(0.4, 0.7, 1.0) * lineIntensity * 2.0;
-    }
-
-    col *= (1.0 - smoothstep(0.9, 1.0, collapseFocus / 1.0));
+    // Black fade for zoom
+    col *= (1.0 - smoothstep(0.95, 1.0, collapseFocus / 1.0));
 
     gl_FragColor = vec4(col * discoveryFactor, discoveryFactor);
   }
