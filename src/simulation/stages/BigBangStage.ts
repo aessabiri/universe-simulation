@@ -5,8 +5,7 @@ import { MemoryUtils } from '../MemoryUtils';
 import { 
     AbstractVoidVertexShader, AbstractVoidFragmentShader,
     MultiverseVertexShader, MultiverseFragmentShader,
-    BeaconVertexShader, BeaconFragmentShader,
-    PrimalCoreVertexShader, PrimalCoreFragmentShader
+    BeaconVertexShader, BeaconFragmentShader
 } from '../shaders/BigBangShaders';
 
 enum BBState {
@@ -22,7 +21,6 @@ export class BigBangStage extends Stage {
   // Objects
   private voidSkybox: THREE.Mesh | null = null;
   private multiverseSphere: THREE.Mesh | null = null;
-  private primalCore: THREE.Mesh | null = null;
   private beacon: THREE.Mesh | null = null;
   private singularityDot: THREE.Mesh | null = null;
   private whiteFlash: THREE.Mesh | null = null;
@@ -49,7 +47,6 @@ export class BigBangStage extends Stage {
     discoveryFactor: { value: 0.0 },
     energyIntensity: { value: 0.0 },
     beaconIntensity: { value: 0.0 },
-    coreIntensity: { value: 0.0 },
     expansion: { value: 0 },
     plasmaMix: { value: 0 },
     pointTexture: { value: TextureUtils.createCircularParticleTexture() }
@@ -70,7 +67,7 @@ export class BigBangStage extends Stage {
     );
     this.scene.add(this.voidSkybox);
 
-    // 2. Multiverse Sphere
+    // 2. Multiverse Sphere (Pure Mandelbulb only)
     this.multiverseSphere = new THREE.Mesh(
         new THREE.SphereGeometry(30, 128, 128),
         new THREE.ShaderMaterial({
@@ -87,25 +84,7 @@ export class BigBangStage extends Stage {
     this.multiverseSphere.position.setFromSphericalCoords(150, theta, phi);
     this.scene.add(this.multiverseSphere);
 
-    // 3. Primal Core
-    this.primalCore = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(4, 4),
-        new THREE.ShaderMaterial({
-            uniforms: {
-                time: this.uniforms.time,
-                intensity: this.uniforms.coreIntensity
-            },
-            vertexShader: PrimalCoreVertexShader,
-            fragmentShader: PrimalCoreFragmentShader,
-            transparent: true,
-            blending: THREE.AdditiveBlending,
-            side: THREE.DoubleSide
-        })
-    );
-    this.primalCore.position.copy(this.multiverseSphere.position);
-    this.scene.add(this.primalCore);
-
-    // 4. Guidance Beacon
+    // 3. Guidance Beacon
     const beaconGeo = new THREE.CylinderGeometry(0.2, 0.2, 2, 8);
     beaconGeo.rotateX(Math.PI * 0.5);
     beaconGeo.translate(0, 0, -1);
@@ -126,7 +105,7 @@ export class BigBangStage extends Stage {
     this.camera.add(this.beacon);
     this.scene.add(this.camera);
 
-    // 5. Singularity Dot
+    // 4. Singularity Dot
     this.singularityDot = new THREE.Mesh(
         new THREE.SphereGeometry(0.05, 32, 32),
         new THREE.MeshBasicMaterial({ color: 0xffffff })
@@ -134,7 +113,7 @@ export class BigBangStage extends Stage {
     this.singularityDot.visible = false;
     this.scene.add(this.singularityDot);
 
-    // 6. White Flash
+    // 5. White Flash
     this.whiteFlash = new THREE.Mesh(
         new THREE.PlaneGeometry(2, 2),
         new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthTest: false })
@@ -143,7 +122,7 @@ export class BigBangStage extends Stage {
     this.whiteFlash.position.z = -0.5;
     this.camera.add(this.whiteFlash);
 
-    // 7. Big Bang Particles
+    // 6. Big Bang Particles
     const geometry = new THREE.BufferGeometry();
     const posArr = new Float32Array(this.particleCount * 3);
     const sizeArr = new Float32Array(this.particleCount);
@@ -284,7 +263,6 @@ export class BigBangStage extends Stage {
 
     this.discoveryFactor = Math.max(this.discoveryFactor, (dot > 0.8 ? 1.0 : 0.0) * (1.0 - dist / 250.0));
     this.uniforms.discoveryFactor.value = this.discoveryFactor;
-    this.uniforms.coreIntensity.value = this.discoveryFactor;
     this.uniforms.beaconIntensity.value = 0.8;
 
     if (dist < 45) {
@@ -296,17 +274,12 @@ export class BigBangStage extends Stage {
   private updateVortex(time: number, delta: number) {
     const elapsed = (time - this.stateStartTime) * 0.001;
     const p = Math.min(1.0, elapsed / 2.0);
-    
-    // SMOOTH LERP INTO THE CENTER
     this.camera.position.lerp(this.multiverseSphere!.position, 0.05);
-    
-    // Gradually align orientation to look at core
     const lookTarget = this.multiverseSphere!.position.clone();
     const qStart = this.camera.quaternion.clone();
     this.camera.lookAt(lookTarget);
     const qEnd = this.camera.quaternion.clone();
     this.camera.quaternion.slerpQuaternions(qStart, qEnd, 0.1);
-
     if (p >= 1.0) {
         this.changeState(BBState.ACTIVATION, time);
         if (this.voidSkybox) this.voidSkybox.visible = false;
@@ -318,18 +291,12 @@ export class BigBangStage extends Stage {
     const elapsed = (time - this.stateStartTime) * 0.001;
     const duration = 12.0; 
     const p = Math.min(1.0, elapsed / duration);
-
-    // HD MAJESTIC ROTATION
     this.uniforms.energyIntensity.value = 0.5 + p * 0.5;
-    this.uniforms.coreIntensity.value = 1.0 + Math.sin(time * 0.005) * 5.0;
     this.uniforms.discoveryFactor.value = 1.0;
     this.uniforms.vortexStrength.value = 0.1;
-
-    // Fixed camera distance, rotating around or looking at center
     const orbitPos = this.multiverseSphere!.position.clone().add(new THREE.Vector3(0, 0, 45));
     this.camera.position.lerp(orbitPos, 0.05);
     this.camera.lookAt(this.multiverseSphere!.position);
-
     if (p >= 1.0) this.changeState(BBState.ZOOM, time);
   }
 
@@ -337,21 +304,15 @@ export class BigBangStage extends Stage {
     const elapsed = (time - this.stateStartTime) * 0.001;
     const duration = 5.0;
     const p = Math.min(1.0, elapsed / duration);
-
     this.uniforms.collapseFocus.value = p * 1.2; 
     this.uniforms.vortexStrength.value = 0.1 + p * 1.5;
-    this.uniforms.coreIntensity.value = 5.0 + p * 100.0;
-
     this.camera.position.lerp(this.multiverseSphere!.position, 0.05);
-
     if (p >= 1.0) this.changeState(BBState.SINGULARITY, time);
   }
 
   private updateSingularity(time: number, delta: number) {
     const elapsed = (time - this.stateStartTime) * 0.001;
     if (this.multiverseSphere) this.multiverseSphere.visible = false;
-    if (this.primalCore) this.primalCore.visible = false;
-
     this.singularityDot!.visible = true;
     this.singularityDot!.position.copy(this.camera.position).add(new THREE.Vector3(0,0,-10).applyQuaternion(this.camera.quaternion));
     this.singularityDot!.scale.setScalar(0.5 + Math.sin(elapsed * 40.0) * 0.2);
@@ -387,7 +348,6 @@ export class BigBangStage extends Stage {
     window.removeEventListener('resize', this.onResize);
     MemoryUtils.disposeObject(this.voidSkybox);
     MemoryUtils.disposeObject(this.multiverseSphere);
-    MemoryUtils.disposeObject(this.primalCore);
     MemoryUtils.disposeObject(this.beacon);
     MemoryUtils.disposeObject(this.particles);
     MemoryUtils.disposeObject(this.singularityDot);
