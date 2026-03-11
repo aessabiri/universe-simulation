@@ -12,6 +12,7 @@ import {
 enum BBState {
     SEARCHING,
     VORTEX,
+    ACTIVATION, // New: Seeing the fractal receiving energy
     SINGULARITY,
     EXPLOSION
 }
@@ -45,6 +46,7 @@ export class BigBangStage extends Stage {
     collapseFocus: { value: 0.0 },
     vortexStrength: { value: 0.0 },
     discoveryFactor: { value: 0.0 },
+    energyIntensity: { value: 0.0 }, // New: Powers the filaments
     beaconIntensity: { value: 0.0 },
     coreIntensity: { value: 0.0 },
     expansion: { value: 0 },
@@ -69,7 +71,7 @@ export class BigBangStage extends Stage {
 
     // 2. Multiverse Sphere
     this.multiverseSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(25, 64, 64),
+        new THREE.SphereGeometry(30, 64, 64),
         new THREE.ShaderMaterial({
             uniforms: this.uniforms,
             vertexShader: MultiverseVertexShader,
@@ -81,12 +83,12 @@ export class BigBangStage extends Stage {
     );
     const phi = Math.random() * Math.PI * 2;
     const theta = Math.acos(2 * Math.random() - 1);
-    this.multiverseSphere.position.setFromSphericalCoords(120, theta, phi);
+    this.multiverseSphere.position.setFromSphericalCoords(150, theta, phi);
     this.scene.add(this.multiverseSphere);
 
     // 3. Primal Core
     this.primalCore = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(3, 4),
+        new THREE.IcosahedronGeometry(4, 4),
         new THREE.ShaderMaterial({
             uniforms: {
                 time: this.uniforms.time,
@@ -140,7 +142,7 @@ export class BigBangStage extends Stage {
     this.whiteFlash.position.z = -0.5;
     this.camera.add(this.whiteFlash);
 
-    // 7. Big Bang Particles
+    // 7. Particles
     const geometry = new THREE.BufferGeometry();
     const posArr = new Float32Array(this.particleCount * 3);
     const sizeArr = new Float32Array(this.particleCount);
@@ -249,6 +251,9 @@ export class BigBangStage extends Stage {
         case BBState.VORTEX:
             this.updateVortex(time, delta);
             break;
+        case BBState.ACTIVATION:
+            this.updateActivation(time, delta);
+            break;
         case BBState.SINGULARITY:
             this.updateSingularity(time, delta);
             break;
@@ -286,7 +291,6 @@ export class BigBangStage extends Stage {
 
     this.uniforms.beaconIntensity.value = 0.8;
 
-    // Discovery factor increases as we look at/approach the sphere
     if (dot > 0.8) {
         this.discoveryFactor = Math.min(1.0, this.discoveryFactor + delta * 0.5);
     } else {
@@ -295,8 +299,7 @@ export class BigBangStage extends Stage {
     this.uniforms.discoveryFactor.value = this.discoveryFactor;
     this.uniforms.coreIntensity.value = this.discoveryFactor;
 
-    // TRIGGER VORTEX: Get within 30 units of the sphere
-    if (dist < 30) {
+    if (dist < 40) {
         this.changeState(BBState.VORTEX, time);
         this.beacon!.visible = false;
     }
@@ -304,22 +307,38 @@ export class BigBangStage extends Stage {
 
   private updateVortex(time: number, delta: number) {
     const elapsed = (time - this.stateStartTime) * 0.001;
-    const duration = 3.0; // 3 second vortex
+    const duration = 2.5; 
     const p = Math.min(1.0, elapsed / duration);
 
-    // 1. Unified Visuals
-    this.uniforms.vortexStrength.value = p;
-    this.uniforms.collapseFocus.value = Math.pow(p, 2.0);
-    this.uniforms.coreIntensity.value = 1.0 + p * 100.0; // Blinding white
     this.uniforms.discoveryFactor.value = 1.0;
+    this.uniforms.coreIntensity.value = 1.0;
 
-    // 2. Physical Pull
-    // Swallows the camera into the sphere
-    this.camera.position.lerp(this.multiverseSphere!.position, 0.08);
-    this.camera.lookAt(this.multiverseSphere!.position);
+    // Pull camera TO the sphere but not past it yet
+    const targetPos = this.multiverseSphere!.position.clone();
+    this.camera.position.lerp(targetPos, 0.05);
+    this.camera.lookAt(targetPos);
 
-    // Screen Shake
-    const shake = Math.sin(time * 60.0) * p * 0.8;
+    if (p >= 1.0) {
+        this.changeState(BBState.ACTIVATION, time);
+    }
+  }
+
+  private updateActivation(time: number, delta: number) {
+    const elapsed = (time - this.stateStartTime) * 0.001;
+    const duration = 5.0; // 5 seconds of powering up
+    const p = Math.min(1.0, elapsed / duration);
+
+    // 1. Surging Energy
+    this.uniforms.energyIntensity.value = p;
+    this.uniforms.coreIntensity.value = 1.0 + p * 20.0;
+    this.uniforms.vortexStrength.value = p * 0.5;
+
+    // 2. Slow zoom into the Mandelbulb
+    const targetPos = this.multiverseSphere!.position.clone();
+    this.camera.position.lerp(targetPos, 0.01);
+    
+    // Screen Shake increases
+    const shake = Math.sin(time * 50.0) * p * 0.5;
     this.camera.position.x += shake;
     this.camera.position.y += shake;
 
@@ -330,17 +349,23 @@ export class BigBangStage extends Stage {
 
   private updateSingularity(time: number, delta: number) {
     const elapsed = (time - this.stateStartTime) * 0.001;
-    const duration = 1.5;
+    const duration = 2.0;
+    const p = Math.min(1.0, elapsed / duration);
 
-    if (this.multiverseSphere) this.multiverseSphere.visible = false;
-    if (this.primalCore) this.primalCore.visible = false;
-    if (this.voidSkybox) this.voidSkybox.visible = false;
+    this.uniforms.collapseFocus.value = p;
+    this.uniforms.coreIntensity.value = 21.0 + p * 100.0;
+
+    if (p > 0.8) {
+        if (this.multiverseSphere) this.multiverseSphere.visible = false;
+        if (this.primalCore) this.primalCore.visible = false;
+        if (this.voidSkybox) this.voidSkybox.visible = false;
+    }
 
     this.singularityDot!.visible = true;
-    this.singularityDot!.position.copy(this.camera.position).add(new THREE.Vector3(0,0,-10).applyQuaternion(this.camera.quaternion));
+    this.singularityDot!.position.copy(this.camera.position).add(new THREE.Vector3(0,0,-5).applyQuaternion(this.camera.quaternion));
     this.singularityDot!.scale.setScalar(0.5 + Math.sin(elapsed * 40.0) * 0.2);
 
-    if (elapsed >= duration) {
+    if (p >= 1.0) {
         this.changeState(BBState.EXPLOSION, time);
     }
   }
