@@ -21,8 +21,7 @@ export class BigBangStage extends Stage {
 
   // State
   private isSearching = true;
-  private isActivating = false;
-  private activationTime = 0;
+  private activationProgress = 0; // 0 to 1
   private discoveryFactor = 0;
   private startTime = 0;
   private eventStartTime = 0;
@@ -32,7 +31,7 @@ export class BigBangStage extends Stage {
   private mouse = new THREE.Vector2();
   private keys: Record<string, boolean> = {};
   private velocity = new THREE.Vector3();
-  private moveSpeed = 80.0;
+  private moveSpeed = 100.0; // Faster
   private friction = 0.94;
 
   private uniforms = {
@@ -71,7 +70,8 @@ export class BigBangStage extends Stage {
             vertexShader: MultiverseVertexShader,
             fragmentShader: MultiverseFragmentShader,
             transparent: true,
-            depthWrite: false
+            depthWrite: false,
+            side: THREE.DoubleSide
         })
     );
     const phi = Math.random() * Math.PI * 2;
@@ -79,7 +79,7 @@ export class BigBangStage extends Stage {
     this.multiverseSphere.position.setFromSphericalCoords(120, theta, phi);
     this.scene.add(this.multiverseSphere);
 
-    // 3. Primal Core (Inside the sphere)
+    // 3. Primal Core
     this.primalCore = new THREE.Mesh(
         new THREE.IcosahedronGeometry(2, 4),
         new THREE.ShaderMaterial({
@@ -90,7 +90,8 @@ export class BigBangStage extends Stage {
             vertexShader: PrimalCoreVertexShader,
             fragmentShader: PrimalCoreFragmentShader,
             transparent: true,
-            blending: THREE.AdditiveBlending
+            blending: THREE.AdditiveBlending,
+            side: THREE.DoubleSide
         })
     );
     this.primalCore.position.copy(this.multiverseSphere.position);
@@ -232,19 +233,16 @@ export class BigBangStage extends Stage {
     this.uniforms.time.value = time * 0.001;
 
     if (this.isSearching) {
-        // 1. ROTATION
         const targetPitch = this.mouse.y * Math.PI * 0.45;
         const targetYaw = -this.mouse.x * Math.PI;
         this.camera.rotation.x += (targetPitch - this.camera.rotation.x) * 0.1;
         this.camera.rotation.y += (targetYaw - this.camera.rotation.y) * 0.1;
 
-        // 2. MOVEMENT
         const accel = new THREE.Vector3();
         if (this.keys['keyw'] || this.keys['arrowup']) accel.z -= 1;
         if (this.keys['keys'] || this.keys['arrowdown']) accel.z += 1;
         if (this.keys['keya'] || this.keys['arrowleft']) accel.x -= 1;
         if (this.keys['keyd'] || this.keys['arrowright']) accel.x += 1;
-        
         if (accel.lengthSq() > 0) {
             accel.normalize().multiplyScalar(this.moveSpeed * delta);
             accel.applyQuaternion(this.camera.quaternion);
@@ -253,69 +251,59 @@ export class BigBangStage extends Stage {
         this.velocity.multiplyScalar(this.friction);
         this.camera.position.add(this.velocity);
 
-        // 3. GUIDANCE & DISCOVERY
         const spherePos = this.multiverseSphere!.position;
         const dirToSphere = spherePos.clone().sub(this.camera.position).normalize();
         this.beacon!.lookAt(spherePos);
-        
         const viewDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
         const dot = viewDir.dot(dirToSphere);
         const dist = this.camera.position.distanceTo(spherePos);
 
         this.uniforms.beaconIntensity.value = 0.8;
 
-        // Reveal fractal and core based on proximity AND alignment
-        const proximity = Math.max(0, 1.0 - dist / 150.0);
         if (dot > 0.8) {
-            this.discoveryFactor += delta * (0.5 + proximity);
+            this.discoveryFactor = Math.min(1.0, this.discoveryFactor + delta * 0.5);
         } else {
             this.discoveryFactor = Math.max(0, this.discoveryFactor - delta * 0.2);
         }
-        this.uniforms.discoveryFactor.value = Math.min(1.0, this.discoveryFactor);
-        
-        // Base core intensity from discovery
-        let finalCoreInt = this.discoveryFactor;
+        this.uniforms.discoveryFactor.value = this.discoveryFactor;
 
-        // ACTIVATION LOGIC: Reach the core and stay for 1 second
-        if (dist < 15) { // Increased radius
-            if (!this.isActivating) {
-                this.isActivating = true;
-                this.activationTime = time;
-            }
+        // ACTIVATION ZONE (Radius 20)
+        if (dist < 20) {
+            this.activationProgress += delta * 1.5; // Charges in ~0.7 seconds
             
-            const activationProgress = (time - this.activationTime) / 1000;
-            // Visual feedback: core glows white-hot as you activate it
-            finalCoreInt = 1.0 + activationProgress * 10.0;
+            // Screen Shake / Core Surge
+            const shake = Math.sin(time * 50.0) * this.activationProgress * 0.5;
+            this.camera.position.x += shake;
+            this.camera.position.y += shake;
+            
+            this.uniforms.coreIntensity.value = 1.0 + this.activationProgress * 20.0;
 
-            if (activationProgress > 1.0) {
-                // ACTIVATED!
+            if (this.activationProgress >= 1.0) {
                 this.isSearching = false;
                 this.eventStartTime = time;
                 this.beacon!.visible = false;
             }
         } else {
-            this.isActivating = false;
+            this.activationProgress = Math.max(0, this.activationProgress - delta * 2.0);
+            this.uniforms.coreIntensity.value = this.discoveryFactor;
         }
-        this.uniforms.coreIntensity.value = finalCoreInt;
     } else {
-        // CINEMATIC TRANSITION
         const elapsed = (time - this.eventStartTime) * 0.001;
-        if (elapsed < 4.0) {
-            const p = elapsed / 4.0;
+        if (elapsed < 2.5) { // Faster transition
+            const p = elapsed / 2.5;
             this.uniforms.vortexStrength.value = p;
             this.uniforms.collapseFocus.value = Math.pow(p, 2.0);
-            this.uniforms.coreIntensity.value = 1.0 + p * 5.0; // Intensify core before it becomes the dot
-            this.camera.position.lerp(this.multiverseSphere!.position, 0.05);
-        } else if (elapsed < 5.5) {
+            this.uniforms.coreIntensity.value = 21.0 + p * 50.0;
+            this.camera.position.lerp(this.multiverseSphere!.position, 0.1);
+        } else if (elapsed < 3.5) {
             if (this.multiverseSphere) this.multiverseSphere.visible = false;
             if (this.primalCore) this.primalCore.visible = false;
             if (this.voidSkybox) this.voidSkybox.visible = false;
-            
             this.singularityDot!.visible = true;
             this.singularityDot!.position.copy(this.camera.position).add(new THREE.Vector3(0,0,-10).applyQuaternion(this.camera.quaternion));
             this.singularityDot!.scale.setScalar(0.5 + Math.sin(elapsed * 40.0) * 0.2);
         } else {
-            const bangElapsed = elapsed - 5.5;
+            const bangElapsed = elapsed - 3.5;
             this.singularityDot!.visible = false;
             this.particles!.visible = true;
             this.particles!.position.copy(this.singularityDot!.position);
