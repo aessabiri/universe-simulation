@@ -112,16 +112,29 @@ export class EarthStage extends Stage {
     this.scene.add(this.moon2);
 
     // 6. Sun
+    // Use MeshBasicMaterial for the sun to prevent any lighting artifacts
     this.sun = new THREE.Mesh(new THREE.SphereGeometry(50, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     this.sun.position.copy(this.uniforms.sunPosition.value);
     this.scene.add(this.sun);
+    
     const sunLight = new THREE.DirectionalLight(0xffffff, 3.5);
     sunLight.position.copy(this.sun.position);
     this.scene.add(sunLight);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 
+    // Improved Lensflare logic to prevent artifacts
     const lensflare = new Lensflare();
-    lensflare.addElement(new LensflareElement(TextureUtils.createCircularParticleTexture(), 1200, 0, new THREE.Color(0xffddaa)));
+    const textureMain = TextureUtils.createSunHueTexture();
+    const textureGhost = TextureUtils.createFlareGhostTexture();
+    
+    // Main glow
+    lensflare.addElement(new LensflareElement(textureMain, 1000, 0, new THREE.Color(0xffffff)));
+    // Additional ghosts for a more cinematic feel and to mask any sudden pops
+    lensflare.addElement(new LensflareElement(textureGhost, 60, 0.6));
+    lensflare.addElement(new LensflareElement(textureGhost, 70, 0.7));
+    lensflare.addElement(new LensflareElement(textureGhost, 120, 0.9));
+    lensflare.addElement(new LensflareElement(textureGhost, 70, 1.0));
+    
     sunLight.add(lensflare);
 
     this.camera.position.set(0, 0, 8);
