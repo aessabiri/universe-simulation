@@ -12,8 +12,8 @@ import {
 enum BBState {
     SEARCHING,
     VORTEX,
-    ACTIVATION, // Pure Mandelbulb rotation
-    ZOOM,       // Deep dive
+    ACTIVATION, 
+    ZOOM,       
     SINGULARITY,
     EXPLOSION
 }
@@ -38,7 +38,7 @@ export class BigBangStage extends Stage {
   private mouse = new THREE.Vector2();
   private keys: Record<string, boolean> = {};
   private velocity = new THREE.Vector3();
-  private moveSpeed = 100.0;
+  private moveSpeed = 120.0;
   private friction = 0.94;
 
   private uniforms = {
@@ -282,7 +282,6 @@ export class BigBangStage extends Stage {
     const viewDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
     const dot = viewDir.dot(dirToSphere);
 
-    // Hide Mandelbulb during search until discovery
     this.discoveryFactor = Math.max(this.discoveryFactor, (dot > 0.8 ? 1.0 : 0.0) * (1.0 - dist / 250.0));
     this.uniforms.discoveryFactor.value = this.discoveryFactor;
     this.uniforms.coreIntensity.value = this.discoveryFactor;
@@ -297,11 +296,19 @@ export class BigBangStage extends Stage {
   private updateVortex(time: number, delta: number) {
     const elapsed = (time - this.stateStartTime) * 0.001;
     const p = Math.min(1.0, elapsed / 2.0);
-    this.camera.position.lerp(this.multiverseSphere!.position, 0.08);
-    this.camera.lookAt(this.multiverseSphere!.position);
+    
+    // SMOOTH LERP INTO THE CENTER
+    this.camera.position.lerp(this.multiverseSphere!.position, 0.05);
+    
+    // Gradually align orientation to look at core
+    const lookTarget = this.multiverseSphere!.position.clone();
+    const qStart = this.camera.quaternion.clone();
+    this.camera.lookAt(lookTarget);
+    const qEnd = this.camera.quaternion.clone();
+    this.camera.quaternion.slerpQuaternions(qStart, qEnd, 0.1);
+
     if (p >= 1.0) {
         this.changeState(BBState.ACTIVATION, time);
-        // HIDE VOID AND BEACON: PURE MANDELBULB ONLY
         if (this.voidSkybox) this.voidSkybox.visible = false;
         if (this.beacon) this.beacon.visible = false;
     }
@@ -312,14 +319,15 @@ export class BigBangStage extends Stage {
     const duration = 12.0; 
     const p = Math.min(1.0, elapsed / duration);
 
-    // MAJESTIC ROTATION IN PURE DARKNESS
+    // HD MAJESTIC ROTATION
     this.uniforms.energyIntensity.value = 0.5 + p * 0.5;
     this.uniforms.coreIntensity.value = 1.0 + Math.sin(time * 0.005) * 5.0;
     this.uniforms.discoveryFactor.value = 1.0;
     this.uniforms.vortexStrength.value = 0.1;
 
-    // Fixed camera, just looking at center
-    this.camera.position.copy(this.multiverseSphere!.position).add(new THREE.Vector3(0, 0, 40));
+    // Fixed camera distance, rotating around or looking at center
+    const orbitPos = this.multiverseSphere!.position.clone().add(new THREE.Vector3(0, 0, 45));
+    this.camera.position.lerp(orbitPos, 0.05);
     this.camera.lookAt(this.multiverseSphere!.position);
 
     if (p >= 1.0) this.changeState(BBState.ZOOM, time);
@@ -334,7 +342,6 @@ export class BigBangStage extends Stage {
     this.uniforms.vortexStrength.value = 0.1 + p * 1.5;
     this.uniforms.coreIntensity.value = 5.0 + p * 100.0;
 
-    // Zoom deep into the fractal
     this.camera.position.lerp(this.multiverseSphere!.position, 0.05);
 
     if (p >= 1.0) this.changeState(BBState.SINGULARITY, time);
