@@ -233,7 +233,9 @@ export class SimulationManager {
         this.controls.target.set(0, 0, 0);
       }
     }
-    this.controls.update();
+    if (this.controls.enabled) {
+      this.controls.update();
+    }
     this.composer.render();
     this.audio.setIntensity(this.epoch / 6.0);
 
