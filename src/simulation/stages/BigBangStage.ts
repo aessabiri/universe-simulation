@@ -2,15 +2,11 @@ import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
 import { MemoryUtils } from '../MemoryUtils';
-import { 
-  MultiverseVertexShader, MultiverseFragmentShader,
-  RadianceVertexShader, RadianceFragmentShader 
-} from '../shaders/BigBangShaders';
+import { MultiverseVertexShader, MultiverseFragmentShader } from '../shaders/BigBangShaders';
 
 export class BigBangStage extends Stage {
-  // Pre-Singularity Objects
+  // Pre-Singularity
   private multiversePlane: THREE.Mesh | null = null;
-  private radiancePlane: THREE.Mesh | null = null;
   
   // Big Bang Objects
   private particles: THREE.Points | null = null;
@@ -20,19 +16,21 @@ export class BigBangStage extends Stage {
   private particleCount = 60000;
   private startTime: number = 0;
   
-  // Revised Lifecycle Timings
-  private MULTIVERSE_END = 8.0;         // Drifting ends
-  private COLLAPSE_END = 11.0;          // Zoom into void ends
-  private RADIANCE_END = 15.0;          // Super Radiance fractals end
-  private DOT_STASIS_END = 16.5;        // Small dot "waiting"
-  private BIG_BANG_START = 16.5;        // BOOM!
-  private PLASMA_TRANSITION = 26.5;     // Cooling
+  // CONTINUOUS LIFECYCLE TIMINGS
+  // 0.0 - 8.0:  Multiverse Drift
+  // 8.0 - 12.0: Convergence (Fractal spirals & pulls into center)
+  // 12.0 - 13.5: Singular Dot (Waiting/Pulsing)
+  // 13.5:       BIG BANG EXPLOSION
+  private CONVERGENCE_START = 8.0;
+  private SINGULARITY_START = 12.0;
+  private BIG_BANG_START = 13.5;
+  private PLASMA_TRANSITION = 23.5;
 
   private uniforms = {
     time: { value: 0 },
     resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
-    collapseFocus: { value: 0.0 }, 
-    radianceIntensity: { value: 0.0 }, 
+    collapseFocus: { value: 0.0 },
+    vortexStrength: { value: 0.0 }, // New: Spirals space into center
     expansion: { value: 0 },
     plasmaMix: { value: 0 },
     pointTexture: { value: TextureUtils.createCircularParticleTexture() }
@@ -41,15 +39,11 @@ export class BigBangStage extends Stage {
   init() {
     this.startTime = performance.now();
     
-    // 1. Multiverse (Mandelbulb) Background
+    // 1. Multiverse Background (Full Screen Quad)
     this.multiversePlane = new THREE.Mesh(
       new THREE.PlaneGeometry(2, 2),
       new THREE.ShaderMaterial({
-        uniforms: {
-          time: this.uniforms.time,
-          resolution: this.uniforms.resolution,
-          collapseFocus: this.uniforms.collapseFocus
-        },
+        uniforms: this.uniforms,
         vertexShader: MultiverseVertexShader,
         fragmentShader: MultiverseFragmentShader,
         depthTest: false,
@@ -61,27 +55,7 @@ export class BigBangStage extends Stage {
     this.camera.add(this.multiversePlane);
     this.scene.add(this.camera);
 
-    // 2. Super Radiance (Kaleidoscopic Symmetrical Fractal)
-    this.radiancePlane = new THREE.Mesh(
-        new THREE.PlaneGeometry(2, 2),
-        new THREE.ShaderMaterial({
-            uniforms: {
-                time: this.uniforms.time,
-                intensity: this.uniforms.radianceIntensity
-            },
-            vertexShader: RadianceVertexShader,
-            fragmentShader: RadianceFragmentShader,
-            depthTest: false,
-            depthWrite: false,
-            transparent: true,
-            blending: THREE.AdditiveBlending
-        })
-    );
-    this.radiancePlane.position.z = -0.6; // In front of Multiverse
-    this.radiancePlane.visible = false;
-    this.camera.add(this.radiancePlane);
-
-    // 3. The Singularity Dot
+    // 2. The Singularity Dot
     this.singularityDot = new THREE.Mesh(
         new THREE.SphereGeometry(0.05, 32, 32),
         new THREE.MeshBasicMaterial({ color: 0xffffff })
@@ -89,7 +63,7 @@ export class BigBangStage extends Stage {
     this.singularityDot.visible = false;
     this.scene.add(this.singularityDot);
 
-    // 4. White Flash
+    // 3. White Flash
     this.whiteFlash = new THREE.Mesh(
         new THREE.PlaneGeometry(2, 2),
         new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthTest: false })
@@ -98,7 +72,7 @@ export class BigBangStage extends Stage {
     this.whiteFlash.position.z = -0.5;
     this.camera.add(this.whiteFlash);
 
-    // 5. Particles
+    // 4. Particles
     const geometry = new THREE.BufferGeometry();
     const posArr = new Float32Array(this.particleCount * 3);
     const sizeArr = new Float32Array(this.particleCount);
@@ -110,7 +84,7 @@ export class BigBangStage extends Stage {
       const i3 = i * 3;
       const phi = Math.random() * Math.PI * 2;
       const theta = Math.acos(2 * Math.random() - 1);
-      const speed = 2.0 + Math.random() * 18.0; // Slightly wilder
+      const speed = 2.0 + Math.random() * 18.0;
       
       velArr[i3] = Math.sin(theta) * Math.cos(phi) * speed;
       velArr[i3+1] = Math.sin(theta) * Math.sin(phi) * speed;
@@ -195,35 +169,29 @@ export class BigBangStage extends Stage {
     const totalElapsed = (time - this.startTime) * 0.001;
     this.uniforms.time.value = totalElapsed;
 
-    if (totalElapsed < this.MULTIVERSE_END) {
-        // 1. Multiverse Phase
+    if (totalElapsed < this.CONVERGENCE_START) {
+        // Phase 1: Drift
+        this.uniforms.vortexStrength.value = 0.0;
         this.uniforms.collapseFocus.value = 0.0;
         
-    } else if (totalElapsed < this.COLLAPSE_END) {
-        // 2. Multiverse Zoom
-        const p = (totalElapsed - this.MULTIVERSE_END) / (this.COLLAPSE_END - this.MULTIVERSE_END);
-        this.uniforms.collapseFocus.value = Math.pow(p, 3.0); 
+    } else if (totalElapsed < this.SINGULARITY_START) {
+        // Phase 2: Convergence (Unified transition)
+        const p = (totalElapsed - this.CONVERGENCE_START) / (this.SINGULARITY_START - this.CONVERGENCE_START);
+        
+        // As time moves, space starts spiraling AND zooming simultaneously
+        this.uniforms.vortexStrength.value = p; 
+        this.uniforms.collapseFocus.value = Math.pow(p, 2.0);
 
-    } else if (totalElapsed < this.RADIANCE_END) {
-        // 3. Super Radiance Fractal Phase
+    } else if (totalElapsed < this.BIG_BANG_START) {
+        // Phase 3: The Singular Dot
         if (this.multiversePlane) this.multiversePlane.visible = false;
-        if (this.radiancePlane) {
-            this.radiancePlane.visible = true;
-            // Pulse intensity up and down
-            const p = (totalElapsed - this.COLLAPSE_END) / (this.RADIANCE_END - this.COLLAPSE_END);
-            this.uniforms.radianceIntensity.value = Math.sin(p * Math.PI) * 1.5;
-        }
-
-    } else if (totalElapsed < this.DOT_STASIS_END) {
-        // 4. Stasis (Dot)
-        if (this.radiancePlane) this.radiancePlane.visible = false;
         
         this.singularityDot!.visible = true;
         this.singularityDot!.scale.setScalar(0.5 + Math.sin(totalElapsed * 40.0) * 0.2);
         this.camera.position.set(0,0,5);
 
     } else {
-        // 5. BIG BANG Phase
+        // Phase 4: BIG BANG EXPLOSION
         const bangElapsed = totalElapsed - this.BIG_BANG_START;
         this.singularityDot!.visible = false;
         this.particles!.visible = true;
@@ -254,14 +222,12 @@ export class BigBangStage extends Stage {
   destroy() { 
     window.removeEventListener('resize', this.onResize);
     MemoryUtils.disposeObject(this.multiversePlane);
-    MemoryUtils.disposeObject(this.radiancePlane);
     MemoryUtils.disposeObject(this.particles);
     MemoryUtils.disposeObject(this.singularityDot);
     MemoryUtils.disposeObject(this.whiteFlash);
     MemoryUtils.disposeTexture(this.uniforms.pointTexture.value);
     
     if (this.multiversePlane) this.camera.remove(this.multiversePlane);
-    if (this.radiancePlane) this.camera.remove(this.radiancePlane);
     if (this.whiteFlash) this.camera.remove(this.whiteFlash);
     this.scene.remove(this.camera);
 
