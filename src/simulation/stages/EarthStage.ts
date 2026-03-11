@@ -26,7 +26,8 @@ export class EarthStage extends Stage {
   private uniforms = {
     time: { value: 0 },
     evolution: { value: 1.0 },
-    sunPosition: { value: new THREE.Vector3(600, 300, -900) },
+    // Place sun much further away to prevent depth artifacts
+    sunPosition: { value: new THREE.Vector3(1200, 600, -1800) },
     impacts: { value: [new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4(), new THREE.Vector4()] }
   };
 
@@ -44,7 +45,7 @@ export class EarthStage extends Stage {
     const starSiz = new Float32Array(starCount);
     for (let i = 0; i < starCount; i++) {
       const i3 = i * 3;
-      const radius = 500 + Math.random() * 300;
+      const radius = 1000 + Math.random() * 500;
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
       starPos[i3] = radius * Math.sin(phi) * Math.cos(theta);
@@ -61,19 +62,22 @@ export class EarthStage extends Stage {
     this.scene.add(this.stars);
     TextureUtils.addCosmicBackground(this.scene, 20);
 
-    // 2. Earth (ShaderMaterial)
+    // 2. Earth (OPAQUE CORE)
     this.earth = new THREE.Mesh(
       new THREE.SphereGeometry(2, 128, 128),
       new THREE.ShaderMaterial({
         uniforms: this.uniforms,
         vertexShader: EarthVertexShader,
-        fragmentShader: EarthFragmentShader
+        fragmentShader: EarthFragmentShader,
+        transparent: false,
+        depthWrite: true,
+        depthTest: true
       })
     );
     this.earth.rotation.y = Math.PI;
     this.scene.add(this.earth);
 
-    // 3. Clouds (ShaderMaterial)
+    // 3. Clouds (TRANSPARENT SHELL)
     this.clouds = new THREE.Mesh(
       new THREE.SphereGeometry(2.03, 128, 128),
       new THREE.ShaderMaterial({
@@ -81,13 +85,13 @@ export class EarthStage extends Stage {
         vertexShader: CloudVertexShader,
         fragmentShader: CloudFragmentShader,
         transparent: true,
-        depthWrite: false,
+        depthWrite: false, // Critical: don't block objects behind
         blending: THREE.NormalBlending
       })
     );
     this.scene.add(this.clouds);
 
-    // 4. Atmosphere (Rayleigh Scattering Shader)
+    // 4. Atmosphere (TRANSPARENT GLOW)
     this.atmosphere = new THREE.Mesh(
       new THREE.SphereGeometry(2.15, 64, 64),
       new THREE.ShaderMaterial({
@@ -97,7 +101,7 @@ export class EarthStage extends Stage {
         blending: THREE.AdditiveBlending,
         side: THREE.BackSide,
         transparent: true,
-        depthWrite: false
+        depthWrite: false // Critical: prevent "glass" artifact blocking sun
       })
     );
     this.scene.add(this.atmosphere);
@@ -111,9 +115,8 @@ export class EarthStage extends Stage {
     this.moon2.position.set(-11, 2, 0);
     this.scene.add(this.moon2);
 
-    // 6. Sun
-    // Use MeshBasicMaterial for the sun to prevent any lighting artifacts
-    this.sun = new THREE.Mesh(new THREE.SphereGeometry(50, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff }));
+    // 6. Sun & Lensflare
+    this.sun = new THREE.Mesh(new THREE.SphereGeometry(100, 32, 32), new THREE.MeshBasicMaterial({ color: 0xffffff }));
     this.sun.position.copy(this.uniforms.sunPosition.value);
     this.scene.add(this.sun);
     
@@ -122,18 +125,15 @@ export class EarthStage extends Stage {
     this.scene.add(sunLight);
     this.scene.add(new THREE.AmbientLight(0xffffff, 0.1));
 
-    // Improved Lensflare logic to prevent artifacts
     const lensflare = new Lensflare();
     const textureMain = TextureUtils.createSunHueTexture();
     const textureGhost = TextureUtils.createFlareGhostTexture();
     
-    // Main glow
-    lensflare.addElement(new LensflareElement(textureMain, 1000, 0, new THREE.Color(0xffffff)));
-    // Additional ghosts for a more cinematic feel and to mask any sudden pops
-    lensflare.addElement(new LensflareElement(textureGhost, 60, 0.6));
-    lensflare.addElement(new LensflareElement(textureGhost, 70, 0.7));
-    lensflare.addElement(new LensflareElement(textureGhost, 120, 0.9));
-    lensflare.addElement(new LensflareElement(textureGhost, 70, 1.0));
+    // Lensflare elements MUST use AdditiveBlending or have perfectly clean alphas
+    lensflare.addElement(new LensflareElement(textureMain, 800, 0, new THREE.Color(0xffffff)));
+    lensflare.addElement(new LensflareElement(textureGhost, 60, 0.6, new THREE.Color(0xffffff)));
+    lensflare.addElement(new LensflareElement(textureGhost, 70, 0.7, new THREE.Color(0xffffff)));
+    lensflare.addElement(new LensflareElement(textureGhost, 120, 0.9, new THREE.Color(0xffffff)));
     
     sunLight.add(lensflare);
 
