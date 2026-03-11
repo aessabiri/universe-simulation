@@ -127,3 +127,37 @@ export const BeaconFragmentShader = `
     gl_FragColor = vec4(col, col.r);
   }
 `;
+
+export const PrimalCoreVertexShader = `
+  varying vec3 vPosition;
+  varying vec3 vNormal;
+  void main() {
+    vPosition = position;
+    vNormal = normalize(normalMatrix * normal);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+  }
+`;
+
+export const PrimalCoreFragmentShader = `
+  uniform float time;
+  uniform float intensity;
+  varying vec3 vPosition;
+  varying vec3 vNormal;
+
+  void main() {
+    float pulse = sin(time * 5.0) * 0.5 + 0.5;
+    
+    // Base colors: Red and Purple
+    vec3 color1 = vec3(0.8, 0.0, 0.2); // Red
+    vec3 color2 = vec3(0.4, 0.0, 0.8); // Purple
+    
+    float noise = sin(vPosition.x * 10.0 + time) * cos(vPosition.y * 10.0 - time);
+    vec3 color = mix(color1, color2, pulse * 0.5 + 0.5 + noise * 0.2);
+    
+    // Fresnel / Edge glow
+    float fresnel = pow(1.0 - dot(vNormal, vec3(0,0,1)), 3.0);
+    color += vec3(1.0, 0.5, 0.8) * fresnel * pulse;
+    
+    gl_FragColor = vec4(color * intensity, intensity);
+  }
+`;
