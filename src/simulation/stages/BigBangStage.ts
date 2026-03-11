@@ -9,6 +9,13 @@ import {
     PrimalCoreVertexShader, PrimalCoreFragmentShader
 } from '../shaders/BigBangShaders';
 
+enum BBState {
+    SEARCHING,
+    VORTEX,
+    SINGULARITY,
+    EXPLOSION
+}
+
 export class BigBangStage extends Stage {
   // Objects
   private voidSkybox: THREE.Mesh | null = null;
@@ -20,18 +27,16 @@ export class BigBangStage extends Stage {
   private particles: THREE.Points | null = null;
 
   // State
-  private isSearching = true;
-  private activationProgress = 0; // 0 to 1
+  private state = BBState.SEARCHING;
+  private stateStartTime = 0;
   private discoveryFactor = 0;
-  private startTime = 0;
-  private eventStartTime = 0;
   private particleCount = 60000;
 
   // Controls
   private mouse = new THREE.Vector2();
   private keys: Record<string, boolean> = {};
   private velocity = new THREE.Vector3();
-  private moveSpeed = 100.0; // Faster
+  private moveSpeed = 100.0;
   private friction = 0.94;
 
   private uniforms = {
@@ -48,7 +53,7 @@ export class BigBangStage extends Stage {
   };
 
   init() {
-    this.startTime = performance.now();
+    this.stateStartTime = performance.now();
     
     // 1. Abstract Void
     this.voidSkybox = new THREE.Mesh(
@@ -64,7 +69,7 @@ export class BigBangStage extends Stage {
 
     // 2. Multiverse Sphere
     this.multiverseSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(20, 64, 64),
+        new THREE.SphereGeometry(25, 64, 64),
         new THREE.ShaderMaterial({
             uniforms: this.uniforms,
             vertexShader: MultiverseVertexShader,
@@ -81,7 +86,7 @@ export class BigBangStage extends Stage {
 
     // 3. Primal Core
     this.primalCore = new THREE.Mesh(
-        new THREE.IcosahedronGeometry(2, 4),
+        new THREE.IcosahedronGeometry(3, 4),
         new THREE.ShaderMaterial({
             uniforms: {
                 time: this.uniforms.time,
@@ -135,7 +140,7 @@ export class BigBangStage extends Stage {
     this.whiteFlash.position.z = -0.5;
     this.camera.add(this.whiteFlash);
 
-    // 7. Particles
+    // 7. Big Bang Particles
     const geometry = new THREE.BufferGeometry();
     const posArr = new Float32Array(this.particleCount * 3);
     const sizeArr = new Float32Array(this.particleCount);
@@ -220,7 +225,7 @@ export class BigBangStage extends Stage {
   }
 
   private onMouseMove = (e: MouseEvent) => {
-    if (!this.isSearching) return;
+    if (this.state !== BBState.SEARCHING) return;
     this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
     this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
   };
@@ -229,101 +234,139 @@ export class BigBangStage extends Stage {
   private onKeyUp = (e: KeyboardEvent) => { this.keys[e.code.toLowerCase()] = false; };
   private onResize = () => { this.uniforms.resolution.value.set(window.innerWidth, window.innerHeight); };
 
+  private changeState(newState: BBState, time: number) {
+    this.state = newState;
+    this.stateStartTime = time;
+  }
+
   update(time: number, delta: number) {
     this.uniforms.time.value = time * 0.001;
 
-    if (this.isSearching) {
-        const targetPitch = this.mouse.y * Math.PI * 0.45;
-        const targetYaw = -this.mouse.x * Math.PI;
-        this.camera.rotation.x += (targetPitch - this.camera.rotation.x) * 0.1;
-        this.camera.rotation.y += (targetYaw - this.camera.rotation.y) * 0.1;
+    switch (this.state) {
+        case BBState.SEARCHING:
+            this.updateSearching(time, delta);
+            break;
+        case BBState.VORTEX:
+            this.updateVortex(time, delta);
+            break;
+        case BBState.SINGULARITY:
+            this.updateSingularity(time, delta);
+            break;
+        case BBState.EXPLOSION:
+            this.updateExplosion(time, delta);
+            break;
+    }
+  }
 
-        const accel = new THREE.Vector3();
-        if (this.keys['keyw'] || this.keys['arrowup']) accel.z -= 1;
-        if (this.keys['keys'] || this.keys['arrowdown']) accel.z += 1;
-        if (this.keys['keya'] || this.keys['arrowleft']) accel.x -= 1;
-        if (this.keys['keyd'] || this.keys['arrowright']) accel.x += 1;
-        if (accel.lengthSq() > 0) {
-            accel.normalize().multiplyScalar(this.moveSpeed * delta);
-            accel.applyQuaternion(this.camera.quaternion);
-            this.velocity.add(accel);
-        }
-        this.velocity.multiplyScalar(this.friction);
-        this.camera.position.add(this.velocity);
+  private updateSearching(time: number, delta: number) {
+    const targetPitch = this.mouse.y * Math.PI * 0.45;
+    const targetYaw = -this.mouse.x * Math.PI;
+    this.camera.rotation.x += (targetPitch - this.camera.rotation.x) * 0.1;
+    this.camera.rotation.y += (targetYaw - this.camera.rotation.y) * 0.1;
 
-        const spherePos = this.multiverseSphere!.position;
-        const dirToSphere = spherePos.clone().sub(this.camera.position).normalize();
-        this.beacon!.lookAt(spherePos);
-        const viewDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
-        const dot = viewDir.dot(dirToSphere);
-        const dist = this.camera.position.distanceTo(spherePos);
+    const accel = new THREE.Vector3();
+    if (this.keys['keyw'] || this.keys['arrowup']) accel.z -= 1;
+    if (this.keys['keys'] || this.keys['arrowdown']) accel.z += 1;
+    if (this.keys['keya'] || this.keys['arrowleft']) accel.x -= 1;
+    if (this.keys['keyd'] || this.keys['arrowright']) accel.x += 1;
+    if (accel.lengthSq() > 0) {
+        accel.normalize().multiplyScalar(this.moveSpeed * delta);
+        accel.applyQuaternion(this.camera.quaternion);
+        this.velocity.add(accel);
+    }
+    this.velocity.multiplyScalar(this.friction);
+    this.camera.position.add(this.velocity);
 
-        this.uniforms.beaconIntensity.value = 0.8;
+    const spherePos = this.multiverseSphere!.position;
+    const dirToSphere = spherePos.clone().sub(this.camera.position).normalize();
+    this.beacon!.lookAt(spherePos);
+    const viewDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const dot = viewDir.dot(dirToSphere);
+    const dist = this.camera.position.distanceTo(spherePos);
 
-        if (dot > 0.8) {
-            this.discoveryFactor = Math.min(1.0, this.discoveryFactor + delta * 0.5);
-        } else {
-            this.discoveryFactor = Math.max(0, this.discoveryFactor - delta * 0.2);
-        }
-        this.uniforms.discoveryFactor.value = this.discoveryFactor;
+    this.uniforms.beaconIntensity.value = 0.8;
 
-        // ACTIVATION ZONE (Radius 20)
-        if (dist < 20) {
-            this.activationProgress += delta * 1.5; // Charges in ~0.7 seconds
-            
-            // Screen Shake / Core Surge
-            const shake = Math.sin(time * 50.0) * this.activationProgress * 0.5;
-            this.camera.position.x += shake;
-            this.camera.position.y += shake;
-            
-            this.uniforms.coreIntensity.value = 1.0 + this.activationProgress * 20.0;
+    // Discovery factor increases as we look at/approach the sphere
+    if (dot > 0.8) {
+        this.discoveryFactor = Math.min(1.0, this.discoveryFactor + delta * 0.5);
+    } else {
+        this.discoveryFactor = Math.max(0, this.discoveryFactor - delta * 0.2);
+    }
+    this.uniforms.discoveryFactor.value = this.discoveryFactor;
+    this.uniforms.coreIntensity.value = this.discoveryFactor;
 
-            if (this.activationProgress >= 1.0) {
-                this.isSearching = false;
-                this.eventStartTime = time;
-                this.beacon!.visible = false;
-            }
-        } else {
-            this.activationProgress = Math.max(0, this.activationProgress - delta * 2.0);
-            this.uniforms.coreIntensity.value = this.discoveryFactor;
+    // TRIGGER VORTEX: Get within 30 units of the sphere
+    if (dist < 30) {
+        this.changeState(BBState.VORTEX, time);
+        this.beacon!.visible = false;
+    }
+  }
+
+  private updateVortex(time: number, delta: number) {
+    const elapsed = (time - this.stateStartTime) * 0.001;
+    const duration = 3.0; // 3 second vortex
+    const p = Math.min(1.0, elapsed / duration);
+
+    // 1. Unified Visuals
+    this.uniforms.vortexStrength.value = p;
+    this.uniforms.collapseFocus.value = Math.pow(p, 2.0);
+    this.uniforms.coreIntensity.value = 1.0 + p * 100.0; // Blinding white
+    this.uniforms.discoveryFactor.value = 1.0;
+
+    // 2. Physical Pull
+    // Swallows the camera into the sphere
+    this.camera.position.lerp(this.multiverseSphere!.position, 0.08);
+    this.camera.lookAt(this.multiverseSphere!.position);
+
+    // Screen Shake
+    const shake = Math.sin(time * 60.0) * p * 0.8;
+    this.camera.position.x += shake;
+    this.camera.position.y += shake;
+
+    if (p >= 1.0) {
+        this.changeState(BBState.SINGULARITY, time);
+    }
+  }
+
+  private updateSingularity(time: number, delta: number) {
+    const elapsed = (time - this.stateStartTime) * 0.001;
+    const duration = 1.5;
+
+    if (this.multiverseSphere) this.multiverseSphere.visible = false;
+    if (this.primalCore) this.primalCore.visible = false;
+    if (this.voidSkybox) this.voidSkybox.visible = false;
+
+    this.singularityDot!.visible = true;
+    this.singularityDot!.position.copy(this.camera.position).add(new THREE.Vector3(0,0,-10).applyQuaternion(this.camera.quaternion));
+    this.singularityDot!.scale.setScalar(0.5 + Math.sin(elapsed * 40.0) * 0.2);
+
+    if (elapsed >= duration) {
+        this.changeState(BBState.EXPLOSION, time);
+    }
+  }
+
+  private updateExplosion(time: number, delta: number) {
+    const elapsed = (time - this.stateStartTime) * 0.001;
+    this.singularityDot!.visible = false;
+    this.particles!.visible = true;
+    this.particles!.position.copy(this.singularityDot!.position);
+
+    let expansion = 0;
+    if (elapsed < 0.1) {
+        expansion = Math.pow(elapsed * 50.0, 3.0);
+        if (this.whiteFlash) {
+            this.whiteFlash.visible = true;
+            (this.whiteFlash.material as THREE.MeshBasicMaterial).opacity = 1.0 - (elapsed / 0.1);
         }
     } else {
-        const elapsed = (time - this.eventStartTime) * 0.001;
-        if (elapsed < 2.5) { // Faster transition
-            const p = elapsed / 2.5;
-            this.uniforms.vortexStrength.value = p;
-            this.uniforms.collapseFocus.value = Math.pow(p, 2.0);
-            this.uniforms.coreIntensity.value = 21.0 + p * 50.0;
-            this.camera.position.lerp(this.multiverseSphere!.position, 0.1);
-        } else if (elapsed < 3.5) {
-            if (this.multiverseSphere) this.multiverseSphere.visible = false;
-            if (this.primalCore) this.primalCore.visible = false;
-            if (this.voidSkybox) this.voidSkybox.visible = false;
-            this.singularityDot!.visible = true;
-            this.singularityDot!.position.copy(this.camera.position).add(new THREE.Vector3(0,0,-10).applyQuaternion(this.camera.quaternion));
-            this.singularityDot!.scale.setScalar(0.5 + Math.sin(elapsed * 40.0) * 0.2);
-        } else {
-            const bangElapsed = elapsed - 3.5;
-            this.singularityDot!.visible = false;
-            this.particles!.visible = true;
-            this.particles!.position.copy(this.singularityDot!.position);
-            let expansion = 0;
-            if (bangElapsed < 0.1) {
-                expansion = Math.pow(bangElapsed * 50.0, 3.0);
-                if (this.whiteFlash) {
-                    this.whiteFlash.visible = true;
-                    (this.whiteFlash.material as THREE.MeshBasicMaterial).opacity = 1.0 - (bangElapsed / 0.1);
-                }
-            } else {
-                expansion = 125.0 + (bangElapsed - 0.1) * 150.0;
-                if(this.whiteFlash) this.whiteFlash.visible = false;
-            }
-            this.uniforms.expansion.value = expansion;
-            let pMix = 0;
-            if (bangElapsed > 10.0) pMix = Math.min(1.0, (bangElapsed - 10.0) / 5.0);
-            this.uniforms.plasmaMix.value = pMix;
-        }
+        expansion = 125.0 + (elapsed - 0.1) * 150.0;
+        if(this.whiteFlash) this.whiteFlash.visible = false;
     }
+    this.uniforms.expansion.value = expansion;
+
+    let pMix = 0;
+    if (elapsed > 10.0) pMix = Math.min(1.0, (elapsed - 10.0) / 5.0);
+    this.uniforms.plasmaMix.value = pMix;
   }
 
   destroy() { 
