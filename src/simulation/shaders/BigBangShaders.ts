@@ -10,9 +10,22 @@ export const MultiverseFragmentShader = `
   uniform float time;
   uniform vec2 resolution;
   uniform float collapseFocus; 
-  uniform float vortexStrength; // 0.0 to 1.0 (Pulls space into center)
+  uniform float vortexStrength;
 
   varying vec2 vUv;
+
+  // Noise for energy filaments
+  float hash(float n) { return fract(sin(n) * 43758.5453123); }
+  float noise(vec3 x) {
+    vec3 p = floor(x);
+    vec3 f = fract(x);
+    f = f*f*(3.0-2.0*f);
+    float n = p.x + p.y*57.0 + 113.0*p.z;
+    return mix(mix(mix( hash(n+  0.0), hash(n+  1.0),f.x),
+                   mix( hash(n+ 57.0), hash(n+ 58.0),f.x),f.y),
+               mix(mix( hash(n+113.0), hash(n+114.0),f.x),
+                   mix( hash(n+170.0), hash(n+171.0),f.x),f.y),f.z);
+  }
 
   float map(vec3 p) {
     vec3 z = p;
@@ -47,14 +60,10 @@ export const MultiverseFragmentShader = `
     vec2 uv = (vUv - 0.5) * 2.0;
     uv.x *= resolution.x / resolution.y;
     
-    // APPLY VORTEX DISTORTION
-    // As vortexStrength increases, UVs spiral into the center
     float angle = atan(uv.y, uv.x);
     float dist = length(uv);
     angle += (1.0 / (dist + 0.01)) * vortexStrength * 5.0;
     uv = vec2(cos(angle), sin(angle)) * dist;
-    
-    // Convergence: Space itself pulls toward center
     uv *= mix(1.0, 10.0, vortexStrength);
 
     vec3 ro = vec3(0.0, 0.0, 2.5) - vec3(0.0, 0.0, collapseFocus * 2.4); 
@@ -90,14 +99,33 @@ export const MultiverseFragmentShader = `
         col = mix(vec3(0.0, 0.0, 0.1), vec3(0.1, 0.0, 0.2), nebula);
     }
     
-    // GRAVITATIONAL GLOW
-    // Add a bright core in the center that intensifies as vortexStrength grows
+    // ENERGY FILAMENTS (Power Lines)
+    // Create radial lines that distort and "flow" toward the center
+    float filamentCount = 12.0;
+    for(float i = 0.0; i < filamentCount; i++) {
+        float radialAngle = (i / filamentCount) * 6.28318 + time * 0.1;
+        vec2 dir = vec2(cos(radialAngle), sin(radialAngle));
+        
+        // Distance to the line
+        float dLine = length(uv - dir * dot(uv, dir));
+        
+        // Distort the line with noise to make it look like plasma
+        float distortion = noise(vec3(uv * 2.0, time * 2.0)) * 0.2;
+        dLine += distortion;
+        
+        // Intensity based on proximity and "flow" (sin wave along the line)
+        float flow = sin(dot(uv, dir) * 5.0 - time * 10.0) * 0.5 + 0.5;
+        float lineIntensity = smoothstep(0.08, 0.0, dLine) * flow;
+        
+        // Lines get brighter as they approach the center and as vortexStrength increases
+        lineIntensity *= mix(0.5, 2.0, vortexStrength);
+        col += vec3(0.4, 0.7, 1.0) * lineIntensity;
+    }
+
     float coreGlow = (1.0 / (length(uv) + 0.05)) * vortexStrength * 0.5;
     col += vec3(1.0, 0.9, 0.7) * coreGlow;
 
     col = mix(col, vec3(0.0), 1.0 - exp(-0.2 * t));
-    
-    // Smoothly fade to black as we hit peak convergence
     col *= (1.0 - smoothstep(0.8, 1.0, vortexStrength));
 
     gl_FragColor = vec4(col, 1.0);
