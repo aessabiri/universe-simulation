@@ -59,10 +59,10 @@ export const MultiverseVertexShader = `
 
 export const MultiverseFragmentShader = `
   uniform float time;
-  uniform float collapseFocus; 
+  uniform float collapseFocus; // 0.0 to 5.0+ (Deep zoom)
   uniform float vortexStrength;
   uniform float discoveryFactor; 
-  uniform float energyIntensity; // 0.0 to 1.0 (Surging lines)
+  uniform float energyIntensity; 
 
   varying vec2 vUv;
   varying vec3 vViewDir;
@@ -85,7 +85,7 @@ export const MultiverseFragmentShader = `
     float dr = 1.0;
     float r = 0.0;
     float power = 8.0 + sin(time * 0.2) * 2.0;
-    for (int i = 0; i < 6; i++) {
+    for (int i = 0; i < 8; i++) {
         r = length(z);
         if (r > 2.0) break;
         float theta = acos(z.z / r);
@@ -102,41 +102,52 @@ export const MultiverseFragmentShader = `
 
   void main() {
     vec3 rd = vViewDir;
+    
+    // VORTEX SPIRAL
     float angle = vortexStrength * 5.0;
     mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
     rd.xy *= rot;
-    vec3 ro = vec3(0.0, 0.0, 2.5) - vec3(0.0, 0.0, collapseFocus * 2.4); 
+
+    // RAY ORIGIN ZOOM
+    // Deep zoom into the fractal structures
+    vec3 ro = vec3(0.0, 0.0, 2.5) - vec3(0.0, 0.0, collapseFocus * 2.45); 
+    
     float t = 0.0;
     float maxD = 10.0;
-    for (int i = 0; i < 64; i++) {
+    for (int i = 0; i < 128; i++) {
         vec3 p = ro + rd * t;
         float d = map(p);
-        if (d < 0.001 || t > maxD) break;
+        if (d < 0.0001 || t > maxD) break;
         t += d;
     }
 
     vec3 col = vec3(0.0);
     if (t < maxD) {
         vec3 p = ro + rd * t;
-        vec3 baseCol = 0.5 + 0.5 * cos(time * 0.5 + p.xyx * 2.0 + vec3(0, 2, 4));
+        // Weird radiating energy colors
+        vec3 baseCol = 0.5 + 0.5 * cos(time * 0.8 + p.xyx * 3.0 + vec3(0, 2, 4));
         col = baseCol;
+        
+        // Add energy glow based on depth
+        col += vec3(0.5, 0.0, 1.0) * (1.0 / (t * t + 0.5)) * energyIntensity;
     }
 
-    // ENERGY FILAMENTS (Power Lines)
+    // ENERGY FILAMENTS
     vec3 pNorm = normalize(vPosition);
     float filamentCount = 12.0;
     for(float i = 0.0; i < filamentCount; i++) {
-        float radialAngle = (i / filamentCount) * 6.28318 + time * 0.1;
+        float radialAngle = (i / filamentCount) * 6.28318 + time * 0.5;
         vec3 dir = vec3(cos(radialAngle), sin(radialAngle), sin(radialAngle * 2.0));
-        
         float dLine = length(pNorm - dir * dot(pNorm, dir));
         float distortion = noise(pNorm * 5.0 + time * 2.0) * 0.1;
         dLine += distortion;
-        
         float flow = sin(dot(pNorm, dir) * 10.0 - time * 20.0) * 0.5 + 0.5;
         float lineIntensity = smoothstep(0.05, 0.0, dLine) * flow * energyIntensity;
         col += vec3(0.4, 0.7, 1.0) * lineIntensity * 2.0;
     }
+
+    // Black fade as we zoom too deep
+    col *= (1.0 - smoothstep(0.9, 1.0, collapseFocus / 1.0));
 
     gl_FragColor = vec4(col * discoveryFactor, discoveryFactor);
   }
