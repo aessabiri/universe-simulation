@@ -12,8 +12,8 @@ import {
 enum BBState {
     SEARCHING,
     VORTEX,
-    ACTIVATION, // Majestic Mandelbulb rotation
-    ZOOM,       // Diving into the void
+    ACTIVATION, // Pure Mandelbulb rotation
+    ZOOM,       // Deep dive
     SINGULARITY,
     EXPLOSION
 }
@@ -72,7 +72,7 @@ export class BigBangStage extends Stage {
 
     // 2. Multiverse Sphere
     this.multiverseSphere = new THREE.Mesh(
-        new THREE.SphereGeometry(30, 64, 64),
+        new THREE.SphereGeometry(30, 128, 128),
         new THREE.ShaderMaterial({
             uniforms: this.uniforms,
             vertexShader: MultiverseVertexShader,
@@ -282,12 +282,13 @@ export class BigBangStage extends Stage {
     const viewDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
     const dot = viewDir.dot(dirToSphere);
 
-    this.discoveryFactor = Math.max(this.discoveryFactor, (dot > 0.8 ? 1.0 : 0.0) * (1.0 - dist / 200.0));
+    // Hide Mandelbulb during search until discovery
+    this.discoveryFactor = Math.max(this.discoveryFactor, (dot > 0.8 ? 1.0 : 0.0) * (1.0 - dist / 250.0));
     this.uniforms.discoveryFactor.value = this.discoveryFactor;
     this.uniforms.coreIntensity.value = this.discoveryFactor;
     this.uniforms.beaconIntensity.value = 0.8;
 
-    if (dist < 40) {
+    if (dist < 45) {
         this.changeState(BBState.VORTEX, time);
         this.beacon!.visible = false;
     }
@@ -295,25 +296,30 @@ export class BigBangStage extends Stage {
 
   private updateVortex(time: number, delta: number) {
     const elapsed = (time - this.stateStartTime) * 0.001;
-    const p = Math.min(1.0, elapsed / 2.5);
-    this.camera.position.lerp(this.multiverseSphere!.position, 0.05);
+    const p = Math.min(1.0, elapsed / 2.0);
+    this.camera.position.lerp(this.multiverseSphere!.position, 0.08);
     this.camera.lookAt(this.multiverseSphere!.position);
-    if (p >= 1.0) this.changeState(BBState.ACTIVATION, time);
+    if (p >= 1.0) {
+        this.changeState(BBState.ACTIVATION, time);
+        // HIDE VOID AND BEACON: PURE MANDELBULB ONLY
+        if (this.voidSkybox) this.voidSkybox.visible = false;
+        if (this.beacon) this.beacon.visible = false;
+    }
   }
 
   private updateActivation(time: number, delta: number) {
     const elapsed = (time - this.stateStartTime) * 0.001;
-    const duration = 12.0; // 12 seconds of rotation
+    const duration = 12.0; 
     const p = Math.min(1.0, elapsed / duration);
 
-    // MAJESTIC ROTATION
-    this.uniforms.energyIntensity.value = 0.5 + Math.sin(time * 0.002) * 0.5;
+    // MAJESTIC ROTATION IN PURE DARKNESS
+    this.uniforms.energyIntensity.value = 0.5 + p * 0.5;
     this.uniforms.coreIntensity.value = 1.0 + Math.sin(time * 0.005) * 5.0;
     this.uniforms.discoveryFactor.value = 1.0;
-    this.uniforms.vortexStrength.value = 0.1; // Slight spiral
+    this.uniforms.vortexStrength.value = 0.1;
 
-    // Camera drifts slightly
-    this.camera.position.x += Math.sin(time * 0.001) * 0.05;
+    // Fixed camera, just looking at center
+    this.camera.position.copy(this.multiverseSphere!.position).add(new THREE.Vector3(0, 0, 40));
     this.camera.lookAt(this.multiverseSphere!.position);
 
     if (p >= 1.0) this.changeState(BBState.ZOOM, time);
@@ -321,26 +327,24 @@ export class BigBangStage extends Stage {
 
   private updateZoom(time: number, delta: number) {
     const elapsed = (time - this.stateStartTime) * 0.001;
-    const duration = 4.0;
+    const duration = 5.0;
     const p = Math.min(1.0, elapsed / duration);
 
-    this.uniforms.collapseFocus.value = p; // Diving deep
-    this.uniforms.vortexStrength.value = 0.1 + p * 0.9;
-    this.uniforms.coreIntensity.value = 5.0 + p * 50.0;
+    this.uniforms.collapseFocus.value = p * 1.2; 
+    this.uniforms.vortexStrength.value = 0.1 + p * 1.5;
+    this.uniforms.coreIntensity.value = 5.0 + p * 100.0;
 
-    // Fast move into the core
-    this.camera.position.lerp(this.multiverseSphere!.position, 0.1);
+    // Zoom deep into the fractal
+    this.camera.position.lerp(this.multiverseSphere!.position, 0.05);
 
     if (p >= 1.0) this.changeState(BBState.SINGULARITY, time);
   }
 
   private updateSingularity(time: number, delta: number) {
     const elapsed = (time - this.stateStartTime) * 0.001;
-    if (elapsed < 0.1) {
-        if (this.multiverseSphere) this.multiverseSphere.visible = false;
-        if (this.primalCore) this.primalCore.visible = false;
-        if (this.voidSkybox) this.voidSkybox.visible = false;
-    }
+    if (this.multiverseSphere) this.multiverseSphere.visible = false;
+    if (this.primalCore) this.primalCore.visible = false;
+
     this.singularityDot!.visible = true;
     this.singularityDot!.position.copy(this.camera.position).add(new THREE.Vector3(0,0,-10).applyQuaternion(this.camera.quaternion));
     this.singularityDot!.scale.setScalar(0.5 + Math.sin(elapsed * 40.0) * 0.2);

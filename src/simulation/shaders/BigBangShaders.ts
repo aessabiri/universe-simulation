@@ -59,7 +59,7 @@ export const MultiverseVertexShader = `
 
 export const MultiverseFragmentShader = `
   uniform float time;
-  uniform float collapseFocus; // 0.0 to 5.0+ (Deep zoom)
+  uniform float collapseFocus; 
   uniform float vortexStrength;
   uniform float discoveryFactor; 
   uniform float energyIntensity; 
@@ -102,14 +102,10 @@ export const MultiverseFragmentShader = `
 
   void main() {
     vec3 rd = vViewDir;
-    
-    // VORTEX SPIRAL
     float angle = vortexStrength * 5.0;
     mat2 rot = mat2(cos(angle), -sin(angle), sin(angle), cos(angle));
     rd.xy *= rot;
 
-    // RAY ORIGIN ZOOM
-    // Deep zoom into the fractal structures
     vec3 ro = vec3(0.0, 0.0, 2.5) - vec3(0.0, 0.0, collapseFocus * 2.45); 
     
     float t = 0.0;
@@ -124,15 +120,13 @@ export const MultiverseFragmentShader = `
     vec3 col = vec3(0.0);
     if (t < maxD) {
         vec3 p = ro + rd * t;
-        // Weird radiating energy colors
         vec3 baseCol = 0.5 + 0.5 * cos(time * 0.8 + p.xyx * 3.0 + vec3(0, 2, 4));
         col = baseCol;
-        
-        // Add energy glow based on depth
         col += vec3(0.5, 0.0, 1.0) * (1.0 / (t * t + 0.5)) * energyIntensity;
     }
 
-    // ENERGY FILAMENTS
+    // Removed background nebula logic for "Pure" Mandelbulb in black space
+    
     vec3 pNorm = normalize(vPosition);
     float filamentCount = 12.0;
     for(float i = 0.0; i < filamentCount; i++) {
@@ -146,7 +140,6 @@ export const MultiverseFragmentShader = `
         col += vec3(0.4, 0.7, 1.0) * lineIntensity * 2.0;
     }
 
-    // Black fade as we zoom too deep
     col *= (1.0 - smoothstep(0.9, 1.0, collapseFocus / 1.0));
 
     gl_FragColor = vec4(col * discoveryFactor, discoveryFactor);
