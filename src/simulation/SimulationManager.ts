@@ -122,6 +122,8 @@ export class SimulationManager {
 
     if (this.currentStage) {
       this.currentStage.init();
+      // Disable controls for Big Bang to allow manual FPV steering
+      this.controls.enabled = (epoch !== Epoch.BIG_BANG);
     }
   }
 

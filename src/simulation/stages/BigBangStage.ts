@@ -2,35 +2,39 @@ import * as THREE from 'three';
 import { Stage } from '../Stage';
 import { TextureUtils } from '../TextureUtils';
 import { MemoryUtils } from '../MemoryUtils';
-import { MultiverseVertexShader, MultiverseFragmentShader } from '../shaders/BigBangShaders';
+import { 
+    AbstractVoidVertexShader, AbstractVoidFragmentShader,
+    MultiverseVertexShader, MultiverseFragmentShader 
+} from '../shaders/BigBangShaders';
 
 export class BigBangStage extends Stage {
-  // Pre-Singularity
-  private multiversePlane: THREE.Mesh | null = null;
-  
-  // Big Bang Objects
-  private particles: THREE.Points | null = null;
+  // Objects
+  private voidSkybox: THREE.Mesh | null = null;
+  private multiverseSphere: THREE.Mesh | null = null;
   private singularityDot: THREE.Mesh | null = null;
   private whiteFlash: THREE.Mesh | null = null;
-  
+  private particles: THREE.Points | null = null;
+
+  // State
+  private isSearching = true;
+  private discoveryFactor = 0;
+  private startTime = 0;
+  private eventStartTime = 0;
   private particleCount = 60000;
-  private startTime: number = 0;
-  
-  // CONTINUOUS LIFECYCLE TIMINGS
-  // 0.0 - 8.0:  Multiverse Drift
-  // 8.0 - 12.0: Convergence (Fractal spirals & pulls into center)
-  // 12.0 - 13.5: Singular Dot (Waiting/Pulsing)
-  // 13.5:       BIG BANG EXPLOSION
-  private CONVERGENCE_START = 8.0;
-  private SINGULARITY_START = 12.0;
-  private BIG_BANG_START = 13.5;
-  private PLASMA_TRANSITION = 23.5;
+
+  // Steering & Movement
+  private targetRotation = new THREE.Euler();
+  private currentRotation = new THREE.Euler();
+  private mouse = new THREE.Vector2();
+  private keys: Record<string, boolean> = {};
+  private moveSpeed = 15.0; // Units per second
 
   private uniforms = {
     time: { value: 0 },
     resolution: { value: new THREE.Vector2(window.innerWidth, window.innerHeight) },
     collapseFocus: { value: 0.0 },
-    vortexStrength: { value: 0.0 }, // New: Spirals space into center
+    vortexStrength: { value: 0.0 },
+    discoveryFactor: { value: 0.0 },
     expansion: { value: 0 },
     plasmaMix: { value: 0 },
     pointTexture: { value: TextureUtils.createCircularParticleTexture() }
@@ -39,23 +43,37 @@ export class BigBangStage extends Stage {
   init() {
     this.startTime = performance.now();
     
-    // 1. Multiverse Background (Full Screen Quad)
-    this.multiversePlane = new THREE.Mesh(
-      new THREE.PlaneGeometry(2, 2),
-      new THREE.ShaderMaterial({
-        uniforms: this.uniforms,
-        vertexShader: MultiverseVertexShader,
-        fragmentShader: MultiverseFragmentShader,
-        depthTest: false,
-        depthWrite: false,
-        transparent: true
-      })
+    // 1. Abstract Void Skybox
+    this.voidSkybox = new THREE.Mesh(
+        new THREE.SphereGeometry(200, 32, 32),
+        new THREE.ShaderMaterial({
+            uniforms: this.uniforms,
+            vertexShader: AbstractVoidVertexShader,
+            fragmentShader: AbstractVoidFragmentShader,
+            side: THREE.BackSide
+        })
     );
-    this.multiversePlane.position.z = -1; 
-    this.camera.add(this.multiversePlane);
-    this.scene.add(this.camera);
+    this.scene.add(this.voidSkybox);
 
-    // 2. The Singularity Dot
+    // 2. Multiverse Sphere (Hidden Fractal)
+    // Placed in a random direction to make search meaningful
+    this.multiverseSphere = new THREE.Mesh(
+        new THREE.SphereGeometry(15, 64, 64),
+        new THREE.ShaderMaterial({
+            uniforms: this.uniforms,
+            vertexShader: MultiverseVertexShader,
+            fragmentShader: MultiverseFragmentShader,
+            transparent: true,
+            depthWrite: false
+        })
+    );
+    // Position it randomly on a sphere of radius 100
+    const phi = Math.random() * Math.PI * 2;
+    const theta = Math.acos(2 * Math.random() - 1);
+    this.multiverseSphere.position.setFromSphericalCoords(100, theta, phi);
+    this.scene.add(this.multiverseSphere);
+
+    // 3. Singularity Dot
     this.singularityDot = new THREE.Mesh(
         new THREE.SphereGeometry(0.05, 32, 32),
         new THREE.MeshBasicMaterial({ color: 0xffffff })
@@ -63,7 +81,7 @@ export class BigBangStage extends Stage {
     this.singularityDot.visible = false;
     this.scene.add(this.singularityDot);
 
-    // 3. White Flash
+    // 4. White Flash
     this.whiteFlash = new THREE.Mesh(
         new THREE.PlaneGeometry(2, 2),
         new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthTest: false })
@@ -72,7 +90,7 @@ export class BigBangStage extends Stage {
     this.whiteFlash.position.z = -0.5;
     this.camera.add(this.whiteFlash);
 
-    // 4. Particles
+    // 5. Big Bang Particles
     const geometry = new THREE.BufferGeometry();
     const posArr = new Float32Array(this.particleCount * 3);
     const sizeArr = new Float32Array(this.particleCount);
@@ -82,19 +100,16 @@ export class BigBangStage extends Stage {
 
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
-      const phi = Math.random() * Math.PI * 2;
-      const theta = Math.acos(2 * Math.random() - 1);
+      const phiP = Math.random() * Math.PI * 2;
+      const thetaP = Math.acos(2 * Math.random() - 1);
       const speed = 2.0 + Math.random() * 18.0;
-      
-      velArr[i3] = Math.sin(theta) * Math.cos(phi) * speed;
-      velArr[i3+1] = Math.sin(theta) * Math.sin(phi) * speed;
-      velArr[i3+2] = Math.cos(theta) * speed;
-
+      velArr[i3] = Math.sin(thetaP) * Math.cos(phiP) * speed;
+      velArr[i3+1] = Math.sin(thetaP) * Math.sin(phiP) * speed;
+      velArr[i3+2] = Math.cos(thetaP) * speed;
       const pR = 15 + Math.random() * 60;
-      plasmaPosArr[i3] = Math.sin(theta) * Math.cos(phi) * pR;
-      plasmaPosArr[i3+1] = Math.sin(theta) * Math.sin(phi) * pR;
-      plasmaPosArr[i3+2] = Math.cos(theta) * pR;
-
+      plasmaPosArr[i3] = Math.sin(thetaP) * Math.cos(phiP) * pR;
+      plasmaPosArr[i3+1] = Math.sin(thetaP) * Math.sin(phiP) * pR;
+      plasmaPosArr[i3+2] = Math.cos(thetaP) * pR;
       sizeArr[i] = 0.5 + Math.random() * 3.5;
       colorSeedArr[i] = Math.random();
     }
@@ -116,7 +131,6 @@ export class BigBangStage extends Stage {
         uniform float expansion;
         uniform float plasmaMix;
         uniform float time;
-
         void main() {
           vec3 explosionPos = velocity * expansion * 0.1;
           vec3 swirl = vec3(
@@ -124,21 +138,15 @@ export class BigBangStage extends Stage {
             plasmaPos.y + cos(time * 1.5 + plasmaPos.z * 0.4) * 8.0,
             plasmaPos.z + sin(time * 1.5 + plasmaPos.x * 0.4) * 8.0
           );
-
           vec3 finalPos = mix(explosionPos, swirl, plasmaMix);
-          
           vec3 c1 = vec3(1.0, 0.9, 0.4);
           vec3 c2 = vec3(1.0, 0.3, 0.1);
           vec3 c3 = vec3(0.5, 0.0, 1.0);
-          
           vec3 expColor = mix(c1, c2, colorSeed);
           expColor = mix(expColor, c3, clamp(expansion/100.0, 0.0, 1.0));
-          
           vec3 plaColor = mix(vec3(0.1, 0.8, 1.0), vec3(0.8, 0.1, 1.0), sin(time + colorSeed * 6.28)*0.5+0.5);
           vColor = mix(expColor, plaColor, plasmaMix);
-
           vAlpha = mix(5.0 / (1.0 + expansion * 0.01), 0.8, plasmaMix);
-
           vec4 mvPosition = modelViewMatrix * vec4(finalPos, 1.0);
           gl_PointSize = size * (mix(800.0, 400.0, plasmaMix) / -mvPosition.z);
           gl_Position = projectionMatrix * mvPosition;
@@ -157,84 +165,132 @@ export class BigBangStage extends Stage {
     this.particles.visible = false;
     this.scene.add(this.particles);
 
-    this.camera.position.set(0, 0, 30);
+    // Camera Init
+    this.camera.position.set(0, 0, 0);
+    this.camera.rotation.set(0, 0, 0);
+
+    // Event Listeners
+    window.addEventListener('mousemove', this.onMouseMove);
+    window.addEventListener('keydown', this.onKeyDown);
+    window.addEventListener('keyup', this.onKeyUp);
     window.addEventListener('resize', this.onResize);
   }
 
+  private onMouseMove = (e: MouseEvent) => {
+    if (!this.isSearching) return;
+    this.mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
+    this.mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+    this.targetRotation.y = -this.mouse.x * Math.PI * 0.5;
+    this.targetRotation.x = this.mouse.y * Math.PI * 0.3;
+  };
+
+  private onKeyDown = (e: KeyboardEvent) => { this.keys[e.code.toLowerCase()] = true; };
+  private onKeyUp = (e: KeyboardEvent) => { this.keys[e.code.toLowerCase()] = false; };
+
   private onResize = () => {
     this.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
-  }
+  };
 
   update(time: number, delta: number) {
-    const totalElapsed = (time - this.startTime) * 0.001;
-    this.uniforms.time.value = totalElapsed;
+    this.uniforms.time.value = time * 0.001;
 
-    if (totalElapsed < this.CONVERGENCE_START) {
-        // Phase 1: Drift
-        this.uniforms.vortexStrength.value = 0.0;
-        this.uniforms.collapseFocus.value = 0.0;
+    if (this.isSearching) {
+        // 1. ROTATION
+        this.currentRotation.x += (this.targetRotation.x - this.currentRotation.x) * 0.05;
+        this.currentRotation.y += (this.targetRotation.y - this.currentRotation.y) * 0.05;
+        this.camera.rotation.set(this.currentRotation.x, this.currentRotation.y, 0, 'YXZ');
+
+        // 2. MOVEMENT (WASD)
+        const moveVector = new THREE.Vector3();
+        if (this.keys['keyw'] || this.keys['arrowup']) moveVector.z -= 1;
+        if (this.keys['keys'] || this.keys['arrowdown']) moveVector.z += 1;
+        if (this.keys['keya'] || this.keys['arrowleft']) moveVector.x -= 1;
+        if (this.keys['keyd'] || this.keys['arrowright']) moveVector.x += 1;
         
-    } else if (totalElapsed < this.SINGULARITY_START) {
-        // Phase 2: Convergence (Unified transition)
-        const p = (totalElapsed - this.CONVERGENCE_START) / (this.SINGULARITY_START - this.CONVERGENCE_START);
-        
-        // As time moves, space starts spiraling AND zooming simultaneously
-        this.uniforms.vortexStrength.value = p; 
-        this.uniforms.collapseFocus.value = Math.pow(p, 2.0);
+        if (moveVector.lengthSq() > 0) {
+            moveVector.normalize().multiplyScalar(this.moveSpeed * delta);
+            moveVector.applyQuaternion(this.camera.quaternion);
+            this.camera.position.add(moveVector);
+        }
 
-    } else if (totalElapsed < this.BIG_BANG_START) {
-        // Phase 3: The Singular Dot
-        if (this.multiversePlane) this.multiversePlane.visible = false;
-        
-        this.singularityDot!.visible = true;
-        this.singularityDot!.scale.setScalar(0.5 + Math.sin(totalElapsed * 40.0) * 0.2);
-        this.camera.position.set(0,0,5);
+        // 3. DISCOVERY LOGIC
+        // Check alignment and distance to Multiverse Sphere
+        const spherePos = this.multiverseSphere!.position;
+        const dist = this.camera.position.distanceTo(spherePos);
+        const dirToSphere = spherePos.clone().sub(this.camera.position).normalize();
+        const viewDir = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+        const dot = viewDir.dot(dirToSphere);
 
-    } else {
-        // Phase 4: BIG BANG EXPLOSION
-        const bangElapsed = totalElapsed - this.BIG_BANG_START;
-        this.singularityDot!.visible = false;
-        this.particles!.visible = true;
-
-        let expansion = 0;
-        if (bangElapsed < 0.1) {
-            expansion = Math.pow(bangElapsed * 50.0, 3.0);
-            if (this.whiteFlash) {
-                this.whiteFlash.visible = true;
-                (this.whiteFlash.material as THREE.MeshBasicMaterial).opacity = 1.0 - (bangElapsed / 0.1);
-            }
+        // Discovery increases if looking at it AND reasonably close (within 60 units)
+        if (dot > 0.95 && dist < 60) {
+            this.discoveryFactor += delta * 0.8;
         } else {
-            expansion = 125.0 + (bangElapsed - 0.1) * 150.0;
-            if(this.whiteFlash) this.whiteFlash.visible = false;
+            this.discoveryFactor = Math.max(0, this.discoveryFactor - delta * 0.3);
         }
-        this.uniforms.expansion.value = expansion;
+        this.uniforms.discoveryFactor.value = this.discoveryFactor;
 
-        let pMix = 0;
-        if (totalElapsed > this.PLASMA_TRANSITION) {
-            pMix = Math.min(1.0, (totalElapsed - this.PLASMA_TRANSITION) / 5.0);
+        if (this.discoveryFactor >= 1.0) {
+            this.isSearching = false;
+            this.eventStartTime = time;
+            // Lock position for transition
+            this.multiverseSphere!.position.copy(this.camera.position.clone().add(dirToSphere.multiplyScalar(15)));
         }
-        this.uniforms.plasmaMix.value = pMix;
+    } else {
+        // CINEMATIC TRANSITION
+        const elapsed = (time - this.eventStartTime) * 0.001;
 
-        this.camera.position.z = mixValue(5 + expansion * 0.02, 30, pMix);
+        if (elapsed < 4.0) {
+            const p = elapsed / 4.0;
+            this.uniforms.vortexStrength.value = p;
+            this.uniforms.collapseFocus.value = Math.pow(p, 2.0);
+            this.camera.position.lerp(this.multiverseSphere!.position, 0.05);
+        } else if (elapsed < 5.5) {
+            if (this.multiverseSphere) this.multiverseSphere.visible = false;
+            if (this.voidSkybox) this.voidSkybox.visible = false;
+            this.singularityDot!.visible = true;
+            this.singularityDot!.position.copy(this.camera.position).add(new THREE.Vector3(0,0,-5).applyQuaternion(this.camera.quaternion));
+            this.singularityDot!.scale.setScalar(0.5 + Math.sin(elapsed * 40.0) * 0.2);
+        } else {
+            const bangElapsed = elapsed - 5.5;
+            this.singularityDot!.visible = false;
+            this.particles!.visible = true;
+            this.particles!.position.copy(this.singularityDot!.position);
+
+            let expansion = 0;
+            if (bangElapsed < 0.1) {
+                expansion = Math.pow(bangElapsed * 50.0, 3.0);
+                if (this.whiteFlash) {
+                    this.whiteFlash.visible = true;
+                    (this.whiteFlash.material as THREE.MeshBasicMaterial).opacity = 1.0 - (bangElapsed / 0.1);
+                }
+            } else {
+                expansion = 125.0 + (bangElapsed - 0.1) * 150.0;
+                if(this.whiteFlash) this.whiteFlash.visible = false;
+            }
+            this.uniforms.expansion.value = expansion;
+
+            let pMix = 0;
+            if (bangElapsed > 10.0) {
+                pMix = Math.min(1.0, (bangElapsed - 10.0) / 5.0);
+            }
+            this.uniforms.plasmaMix.value = pMix;
+        }
     }
   }
 
   destroy() { 
+    window.removeEventListener('mousemove', this.onMouseMove);
+    window.removeEventListener('keydown', this.onKeyDown);
+    window.removeEventListener('keyup', this.onKeyUp);
     window.removeEventListener('resize', this.onResize);
-    MemoryUtils.disposeObject(this.multiversePlane);
+    MemoryUtils.disposeObject(this.voidSkybox);
+    MemoryUtils.disposeObject(this.multiverseSphere);
     MemoryUtils.disposeObject(this.particles);
     MemoryUtils.disposeObject(this.singularityDot);
     MemoryUtils.disposeObject(this.whiteFlash);
     MemoryUtils.disposeTexture(this.uniforms.pointTexture.value);
     
-    if (this.multiversePlane) this.camera.remove(this.multiversePlane);
     if (this.whiteFlash) this.camera.remove(this.whiteFlash);
-    this.scene.remove(this.camera);
-
     this.scene.clear(); 
   }
-}
-
-function mixValue(a: number, b: number, t: number) {
-    return a * (1 - t) + b * t;
 }
