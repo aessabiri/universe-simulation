@@ -1,12 +1,52 @@
 export const CloudVertexShader = `
   varying vec2 vUv;
   varying vec3 vPosition;
+  varying vec3 vLocalPos;
   varying vec3 vNormal;
+  uniform float time;
+  uniform float evolution;
+
+  // Simple noise for displacement
+  vec3 permute(vec3 x) { return mod(((x*34.0)+1.0)*x, 289.0); }
+  float snoise(vec2 v){
+    const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+    vec2 i  = floor(v + dot(v, C.yy) );
+    vec2 x0 = v -   i + dot(i, C.xx);
+    vec2 i1;
+    i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    vec4 x12 = x0.xyxy + C.xxzz;
+    x12.xy -= i1;
+    i = mod(i, 289.0);
+    vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
+    vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+    m = m*m ;
+    m = m*m ;
+    vec3 x = 2.0 * fract(p * C.www) - 1.0;
+    vec3 h = abs(x) - 0.5;
+    vec3 ox = floor(x + 0.5);
+    vec3 a0 = x - ox;
+    m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+    vec3 g;
+    g.x  = a0.x  * x0.x  + h.x  * x0.y;
+    g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+    return 130.0 * dot(m, g);
+  }
+
   void main() {
     vUv = uv;
+    vLocalPos = position;
+    vec3 pos = position;
+    
+    // Physical volumetric bumpiness for clouds
+    if (evolution >= 0.4) {
+      float n = snoise(pos.xy * 2.0 + time * 0.05) * 0.5 + 0.5;
+      n *= snoise(pos.yz * 3.0 - time * 0.03) * 0.5 + 0.5;
+      pos += normal * n * 0.08;
+    }
+
     vNormal = normalize(vec3(modelMatrix * vec4(normal, 0.0)));
-    vPosition = (modelMatrix * vec4(position, 1.0)).xyz;
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    vPosition = (modelMatrix * vec4(pos, 1.0)).xyz;
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
 `;
 
@@ -16,6 +56,7 @@ export const CloudFragmentShader = `
   uniform vec3 sunPosition;
   varying vec2 vUv;
   varying vec3 vPosition;
+  varying vec3 vLocalPos;
   varying vec3 vNormal;
 
   vec4 permute(vec4 x){return mod(((x*34.0)+1.0)*x, 289.0);}
@@ -50,6 +91,7 @@ export const CloudFragmentShader = `
     m = m * m;
     return 42.0 * dot( m*m, vec4( dot(p0,x0), dot(p1,x1), dot(p2,x2), dot(p3,x3) ) );
   }
+  
   float fbm(vec3 x) {
     float v = 0.0; float a = 0.5; vec3 shift = vec3(100.0);
     for (int i = 0; i < 5; ++i) { v += a * snoise(x); x = x * 2.0 + shift; a *= 0.5; }
@@ -57,26 +99,40 @@ export const CloudFragmentShader = `
   }
 
   void main() {
-    // Correct world-space light calculation
     vec3 lightDir = normalize(sunPosition - vPosition);
-    float diff = max(dot(vNormal, lightDir), 0.0);
-    float ambient = 0.1;
-
-    vec3 pos = normalize(vPosition);
-    float n = fbm(pos * 4.0 + vec3(time * 0.05, 0.0, time * 0.02));
+    // Use vLocalPos for noise generation so it rotates with the mesh!
+    vec3 pos = normalize(vLocalPos);
     
+    // Main cloud noise
+    float n = fbm(pos * 4.5 + vec3(time * 0.03, 0.0, time * 0.01));
+    
+    // Secondary noise for detail
+    float detail = fbm(pos * 12.0 - vec3(time * 0.05));
+    float finalNoise = n * 0.7 + detail * 0.3;
+
     vec3 cloudColor = vec3(1.0);
-    float alpha = max(0.0, n - 0.4) * 2.0;
+    float alpha = 0.0;
 
     if (evolution < 0.4) {
-      cloudColor = vec3(0.8, 0.5, 0.2); 
-      alpha = (n * 0.8) + 0.2; 
+      // Proto-atmosphere / Primordial clouds
+      cloudColor = vec3(0.85, 0.55, 0.3); 
+      alpha = (finalNoise * 0.7) + 0.3; 
     } else {
+      // Modern clouds
       float lat = abs(pos.y);
-      float band = abs(sin(lat * 8.0)) * 0.4 + 0.6;
-      alpha *= band * smoothstep(0.4, 0.5, evolution);
+      float band = abs(sin(lat * 8.0)) * 0.3 + 0.7;
+      alpha = smoothstep(0.42, 0.65, finalNoise) * band;
+      alpha *= smoothstep(0.4, 0.55, evolution);
     }
 
-    gl_FragColor = vec4(cloudColor * (diff + ambient), alpha * 0.7);
+    // Pseudo self-shadowing: sample noise again at offset towards sun
+    float shadowSample = fbm((pos + lightDir * 0.05) * 4.5 + vec3(time * 0.03, 0.0, time * 0.01));
+    float shadow = smoothstep(0.3, 0.6, shadowSample);
+    
+    float diff = max(dot(vNormal, lightDir), 0.0);
+    vec3 lighting = cloudColor * (diff * 0.8 + 0.2);
+    lighting *= (1.0 - shadow * 0.4); // Darken based on self-shadowing
+
+    gl_FragColor = vec4(lighting, alpha * 0.8);
   }
 `;

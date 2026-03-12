@@ -35,6 +35,12 @@ export class SimulationManager {
   private audio = new AudioManager();
   private onUpdateCallback: ((time: number) => void) | null = null;
 
+  // Time Controls
+  private timeScale: number = 1.0;
+  private isPaused: boolean = false;
+  private simTime: number = 0;
+  private lastTime: number = 0;
+
   constructor(container: HTMLElement) {
     this.container = container;
     this.scene = new THREE.Scene();
@@ -224,8 +230,15 @@ export class SimulationManager {
   }
 
   public animate(time: number) {
+    if (this.lastTime === 0) this.lastTime = time;
+    const realDelta = (time - this.lastTime) * 0.001;
+    this.lastTime = time;
+
+    const simDelta = this.isPaused ? 0 : realDelta * this.timeScale;
+    this.simTime += simDelta;
+
     if (this.currentStage) {
-      this.currentStage.update(time, 0.016);
+      this.currentStage.update(this.simTime * 1000, simDelta);
       const target = this.currentStage.getFocusTarget();
       if (target) {
         this.controls.target.lerp(target, 0.1);
@@ -240,10 +253,34 @@ export class SimulationManager {
     this.audio.setIntensity(this.epoch / 6.0);
 
     if (this.onUpdateCallback) {
-      this.onUpdateCallback(time);
+      this.onUpdateCallback(this.simTime * 1000);
     }
 
     requestAnimationFrame((t) => this.animate(t));
+  }
+
+  public setTimeScale(scale: number) {
+    this.timeScale = scale;
+  }
+
+  public togglePause() {
+    this.isPaused = !this.isPaused;
+    return this.isPaused;
+  }
+
+  public getSimulationState() {
+    return {
+      paused: this.isPaused,
+      speed: this.timeScale,
+      time: this.simTime
+    };
+  }
+
+  public getGranularMetrics() {
+    if (this.currentStage && 'getMetrics' in this.currentStage) {
+      return (this.currentStage as any).getMetrics();
+    }
+    return null;
   }
 
   public focusOnIndex(index: number | null) {

@@ -144,6 +144,43 @@ export class EarthStage extends Stage {
     this.targetEvolution = val;
   }
 
+  public getMetrics() {
+    const e = this.uniforms.evolution.value;
+    if (e < 0.4) {
+      return {
+        phase: "Hadean Eon",
+        temp: Math.round(1500 - e * 1000) + " K",
+        atmo: "CO2, N2, H2O",
+        o2: "0%",
+        status: "Magma Ocean"
+      };
+    } else if (e < 0.7) {
+      return {
+        phase: "Archean Eon",
+        temp: Math.round(350 - (e - 0.4) * 200) + " K",
+        atmo: "N2, CH4, CO2",
+        o2: "< 1%",
+        status: "First Oceans"
+      };
+    } else if (e < 0.9) {
+      return {
+        phase: "Proterozoic Eon",
+        temp: Math.round(260 + (e - 0.7) * 40) + " K",
+        atmo: "N2, O2 (Rising)",
+        o2: "5 - 15%",
+        status: "Snowball Earth"
+      };
+    } else {
+      return {
+        phase: "Phanerozoic Eon",
+        temp: "288 K",
+        atmo: "N2, O2, Ar",
+        o2: "21%",
+        status: "Modern Life"
+      };
+    }
+  }
+
   private spawnImpact(t: number) {
     const phi = Math.random() * Math.PI * 2;
     const theta = Math.random() * Math.PI;
@@ -202,10 +239,25 @@ export class EarthStage extends Stage {
         this.meteors = [];
     }
 
-    if (this.earth) this.earth.rotation.y += 0.0002;
-    if (this.clouds) this.clouds.rotation.y += 0.0003;
-    if (this.moon) { this.moon.position.x = Math.cos(t * 0.08) * 8; this.moon.position.z = Math.sin(t * 0.08) * 8; }
-    if (this.moon2) { this.moon2.position.x = Math.cos(t * 0.12) * 11; this.moon2.position.z = Math.sin(t * 0.12) * 11; this.moon2.position.y = Math.sin(t * 0.12) * 3; }
+    // Auto-advance evolution if we are in "fast forward" (delta is significant)
+    if (delta > 0.04) {
+      this.targetEvolution = Math.max(this.targetEvolution, this.uniforms.evolution.value);
+      this.targetEvolution = Math.min(1.0, this.targetEvolution + delta * 0.005);
+    }
+
+    if (this.earth) this.earth.rotation.y += 0.03 * delta;
+    if (this.clouds) this.clouds.rotation.y += 0.05 * delta;
+    
+    if (this.moon) { 
+      this.moon.position.x = Math.cos(t * 0.08) * 8; 
+      this.moon.position.z = Math.sin(t * 0.08) * 8; 
+    }
+    
+    if (this.moon2) { 
+      this.moon2.position.x = Math.cos(t * 0.12) * 11; 
+      this.moon2.position.z = Math.sin(t * 0.12) * 11; 
+      this.moon2.position.y = Math.sin(t * 0.12) * 3; 
+    }
   }
 
   destroy() { 

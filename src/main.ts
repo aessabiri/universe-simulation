@@ -50,6 +50,16 @@ app.innerHTML = `
     <div id="info-body">
       <p id="epoch-desc">Space, time, and matter erupt from a singularity. The universe expands faster than light during cosmic inflation.</p>
     </div>
+
+    <!-- DEEP INFO PANEL -->
+    <div id="deep-info-panel" style="display: none;">
+      <div class="deep-info-header">PLANETARY VITAL SIGNS</div>
+      <div class="deep-info-row"><span>PHASE:</span> <span id="deep-phase" class="stat-value">...</span></div>
+      <div class="deep-info-row"><span>SURFACE TEMP:</span> <span id="deep-temp" class="stat-value">...</span></div>
+      <div class="deep-info-row"><span>ATMOSPHERE:</span> <span id="deep-atmo" class="stat-value">...</span></div>
+      <div class="deep-info-row"><span>OXYGEN:</span> <span id="deep-o2" class="stat-value">...</span></div>
+      <div class="deep-info-row"><span>STATUS:</span> <span id="deep-status" class="stat-value">...</span></div>
+    </div>
     
     <div id="scanner-hud" style="display: none;">
       <div class="scanner-header">ATMOSPHERIC SPECTROMETER</div>
@@ -68,6 +78,14 @@ app.innerHTML = `
         <span class="stat-label">CORE TEMP</span>
         <span id="stat-temp" class="stat-value">10^32 K</span>
       </div>
+    </div>
+
+    <!-- TIME CONTROLS -->
+    <div id="time-controls-hud">
+      <button id="btn-pause" class="time-btn">PAUSE</button>
+      <button id="btn-speed-1" class="time-btn active">1x</button>
+      <button id="btn-speed-5" class="time-btn">5x</button>
+      <button id="btn-speed-25" class="time-btn">25x</button>
     </div>
   </div>
 
@@ -108,6 +126,15 @@ const scanC = document.getElementById('scan-c')!;
 const habScore = document.getElementById('habitability-score')!;
 const btnDeploy = document.getElementById('btn-deploy-seed')!;
 
+// NEW UI REFERENCES
+const deepInfo = document.getElementById('deep-info-panel')!;
+const deepPhase = document.getElementById('deep-phase')!;
+const deepTemp = document.getElementById('deep-temp')!;
+const deepAtmo = document.getElementById('deep-atmo')!;
+const deepO2 = document.getElementById('deep-o2')!;
+const deepStatus = document.getElementById('deep-status')!;
+const btnPause = document.getElementById('btn-pause')!;
+
 function updateHUD() {
     const data = manager.getEpochData();
     if (data) {
@@ -119,6 +146,19 @@ function updateHUD() {
 }
 
 manager.onUpdate(() => {
+  // Update Deep Info if available
+  const metrics = manager.getGranularMetrics();
+  if (metrics) {
+    deepInfo.style.display = 'block';
+    deepPhase.innerText = metrics.phase;
+    deepTemp.innerText = metrics.temp;
+    deepAtmo.innerText = metrics.atmo;
+    deepO2.innerText = metrics.o2;
+    deepStatus.innerText = metrics.status;
+  } else {
+    deepInfo.style.display = 'none';
+  }
+
   if (popup.style.display === 'block') {
     const stage = manager.getCurrentStage();
     if (stage) {
@@ -130,6 +170,23 @@ manager.onUpdate(() => {
       }
     }
   }
+});
+
+// Time Control Listeners
+btnPause.addEventListener('click', () => {
+  const isPaused = manager.togglePause();
+  btnPause.innerText = isPaused ? 'RESUME' : 'PAUSE';
+  btnPause.classList.toggle('active', isPaused);
+});
+
+[1, 5, 25].forEach(speed => {
+  document.getElementById(`btn-speed-${speed}`)?.addEventListener('click', (e) => {
+    manager.setTimeScale(speed);
+    document.querySelectorAll('#time-controls-hud .time-btn').forEach(b => {
+      if (b.id !== 'btn-pause') b.classList.remove('active');
+    });
+    (e.target as HTMLElement).classList.add('active');
+  });
 });
 
 manager.animate(0);

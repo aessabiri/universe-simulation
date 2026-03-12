@@ -2,15 +2,27 @@ export const EarthVertexShader = `
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vPosition;
+  varying vec3 vLocalPos;
   varying vec3 vViewDir;
+  uniform float time;
+  uniform float evolution;
   
   void main() {
     vUv = uv;
-    vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+    vLocalPos = position;
+    vec3 pos = position;
+    
+    // Subtle heat distortion for Hadean phase
+    if (evolution < 0.4) {
+      float distortion = sin(pos.y * 10.0 + time * 2.0) * cos(pos.x * 10.0 + time * 1.5) * 0.01;
+      pos += normal * distortion;
+    }
+
+    vec4 worldPosition = modelMatrix * vec4(pos, 1.0);
     vPosition = worldPosition.xyz;
     vNormal = normalize(vec3(modelMatrix * vec4(normal, 0.0)));
     vViewDir = normalize(cameraPosition - vPosition);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
   }
 `;
 
@@ -23,6 +35,7 @@ export const EarthFragmentShader = `
   varying vec2 vUv;
   varying vec3 vNormal;
   varying vec3 vPosition;
+  varying vec3 vLocalPos;
   varying vec3 vViewDir;
 
   // Noise functions for procedural generation
@@ -80,7 +93,8 @@ export const EarthFragmentShader = `
   }
 
   void main() {
-    vec3 pos = normalize(vPosition);
+    // CRITICAL: Use vLocalPos for noise generation so it rotates with the mesh!
+    vec3 pos = normalize(vLocalPos);
     vec3 lightDir = normalize(sunPosition - vPosition);
     float diff = max(dot(vNormal, lightDir), 0.0);
     float ambient = 0.05;
@@ -90,30 +104,34 @@ export const EarthFragmentShader = `
     float roughness = 0.8;
 
     if (evolution < 0.4) {
-      // HADEAN EARTH: LAVA FLOWS
-      float flowSpeed = time * 0.2;
+      // HADEAN EARTH: ADVANCED LAVA FLOWS
+      float flowSpeed = time * 0.15;
       
-      // Moving noise for lava veins
-      float noise1 = snoise(pos * 3.0 + vec3(flowSpeed, 0.0, flowSpeed * 0.5));
-      float noise2 = snoise(pos * 6.0 - vec3(0.0, flowSpeed * 0.8, flowSpeed));
-      float combinedNoise = noise1 * 0.6 + noise2 * 0.4;
+      // Multi-layered 4D-like noise for fluid lava
+      float n1 = snoise(pos * 2.5 + vec3(0.0, flowSpeed, 0.0));
+      float n2 = snoise(pos * 5.0 - vec3(flowSpeed * 0.5, flowSpeed * 0.2, 0.0));
+      float n3 = snoise(pos * 10.0 + vec3(0.0, 0.0, flowSpeed * 0.8));
       
-      // Magma vs Cooling Crust
-      float lavaMask = smoothstep(0.1, 0.5, combinedNoise);
-      vec3 colorLava = mix(vec3(0.8, 0.1, 0.0), vec3(1.0, 0.6, 0.0), snoise(pos * 10.0 + time) * 0.5 + 0.5);
-      vec3 colorCrust = vec3(0.05, 0.04, 0.03);
+      float combinedNoise = (n1 * 0.5 + n2 * 0.3 + n3 * 0.2) * 0.5 + 0.5;
+      
+      // Sharp transitions for crust/lava
+      float lavaMask = smoothstep(0.45, 0.65, combinedNoise);
+      float pulse = sin(time * 0.5 + combinedNoise * 10.0) * 0.1 + 0.9;
+      
+      vec3 colorLava = mix(vec3(0.6, 0.05, 0.0), vec3(1.0, 0.4, 0.0), combinedNoise) * pulse;
+      vec3 colorCrust = vec3(0.06, 0.05, 0.04);
       
       finalColor = mix(colorCrust, colorLava, lavaMask);
-      emissive = lavaMask * 2.0;
-      roughness = mix(0.9, 0.3, lavaMask);
+      emissive = lavaMask * 3.5;
+      roughness = mix(0.95, 0.2, lavaMask);
 
-      // Impact craters (glowing hot)
+      // Impact craters (hyper-heated)
       for(int i=0; i<5; i++) {
         float d = distance(pos, normalize(impacts[i].xyz));
-        if (d < 0.15) {
-            float impactForce = impacts[i].w * (1.0 - smoothstep(0.0, 0.15, d));
-            finalColor = mix(finalColor, vec3(1.0, 0.9, 0.5), impactForce);
-            emissive += impactForce * 6.0;
+        if (d < 0.12) {
+            float force = impacts[i].w * (1.0 - smoothstep(0.0, 0.12, d));
+            finalColor = mix(finalColor, vec3(1.2, 1.0, 0.6), force);
+            emissive += force * 8.0;
         }
       }
     } else {
@@ -127,18 +145,18 @@ export const EarthFragmentShader = `
         // Ocean / Ice
         vec3 waterColor = mix(vec3(0.02, 0.08, 0.2), vec3(0.05, 0.15, 0.35), smoothstep(0.3, 0.5, noiseVal));
         finalColor = mix(waterColor, vec3(0.95, 0.98, 1.0), snowballFactor);
-        roughness = mix(0.2, 0.1, snowballFactor);
+        roughness = mix(0.15, 0.05, snowballFactor);
       } else {
         // Land
-        float snowLine = mix(0.95, 0.7, lifeRatio) + (fbm(pos*10.0)*0.05);
+        float snowLine = mix(0.95, 0.72, lifeRatio) + (fbm(pos*12.0)*0.04);
         snowLine = mix(snowLine, 0.0, snowballFactor);
         
         if (lat > snowLine) {
-          finalColor = vec3(0.95, 0.95, 1.0);
-          roughness = 0.9;
+          finalColor = vec3(0.98, 0.98, 1.0);
+          roughness = 0.95;
         } else {
-          vec3 aridColor = vec3(0.6, 0.5, 0.35);
-          vec3 lushColor = mix(vec3(0.1, 0.25, 0.05), vec3(0.05, 0.2, 0.05), lat * 2.0);
+          vec3 aridColor = vec3(0.55, 0.45, 0.3);
+          vec3 lushColor = mix(vec3(0.08, 0.22, 0.05), vec3(0.04, 0.18, 0.04), lat * 1.8);
           finalColor = mix(aridColor, lushColor, lifeRatio);
           roughness = 1.0;
         }
@@ -147,10 +165,15 @@ export const EarthFragmentShader = `
 
     // Specular highlight
     vec3 halfDir = normalize(lightDir + vViewDir);
-    float spec = pow(max(dot(vNormal, halfDir), 0.0), 32.0);
-    vec3 specularColor = vec3(0.5) * (1.0 - roughness);
+    float spec = pow(max(dot(vNormal, halfDir), 0.0), 64.0);
+    vec3 specularColor = vec3(0.4) * (1.0 - roughness);
 
-    gl_FragColor = vec4(finalColor * (diff + ambient) + (finalColor * emissive) + (specularColor * spec * diff), 1.0);
+    // Final lighting assembly
+    vec3 lighting = (diff + ambient) * finalColor;
+    vec3 reflection = specularColor * spec * diff;
+    vec3 emission = finalColor * emissive;
+    
+    gl_FragColor = vec4(lighting + emission + reflection, 1.0);
   }
 `;
 
@@ -176,27 +199,42 @@ export const AtmosphereFragmentShader = `
   varying vec3 vViewDir;
 
   void main() {
+    // Re-normalize interpolated vectors for accuracy
+    vec3 normal = normalize(vNormal);
+    vec3 viewDir = normalize(vViewDir);
     vec3 lightDir = normalize(sunPosition - vPosition);
-    float dotNL = dot(vNormal, lightDir);
-    float viewDotNormal = dot(vViewDir, vNormal);
     
-    // Fresnel-like effect for the atmospheric "ring"
-    float intensity = pow(1.0 - viewDotNormal, 4.0);
+    float dotNL = dot(normal, lightDir);
+    float viewDotNormal = dot(viewDir, normal);
     
-    // Rayleigh scattering colors (blue sky, orange sunset)
-    vec3 dayColor = vec3(0.3, 0.6, 1.0);
-    vec3 sunsetColor = vec3(1.0, 0.5, 0.2);
+    // Correct Rayleigh/Fresnel falloff for BackSide:
+    // Rim is where view is perpendicular to normal (dot ~ 0)
+    // Center is where view is opposite to normal (dot ~ -1)
+    float rim = 1.0 - abs(viewDotNormal);
+    float intensity = pow(clamp(rim, 0.0, 1.0), 6.0);
     
-    // Transition based on light angle
-    float sunsetFactor = clamp(1.0 - abs(dotNL + 0.1) * 2.0, 0.0, 1.0);
-    vec3 atmosColor = mix(dayColor, sunsetColor, sunsetFactor);
+    // Scattering parameters
+    vec3 blueSky = vec3(0.3, 0.6, 1.0);
+    vec3 orangeSunset = vec3(1.0, 0.45, 0.15);
+    vec3 spaceBlack = vec3(0.02, 0.05, 0.1);
     
-    // Thin out atmosphere based on evolution (early earth had thicker/different atmosphere)
-    float atmosThickness = mix(0.5, 1.2, smoothstep(0.0, 0.5, evolution));
+    // Sunset transition logic
+    float sunsetFactor = clamp(1.0 - abs(dotNL + 0.15) * 2.5, 0.0, 1.0);
+    vec3 scatterColor = mix(blueSky, orangeSunset, sunsetFactor);
     
-    // Night side should be dark
-    float shadow = smoothstep(-0.2, 0.2, dotNL);
+    // Pseudo-Mie scattering (halo around sun)
+    float dotVL = dot(viewDir, -lightDir);
+    float mie = pow(max(0.0, dotVL), 12.0) * 0.5;
+    scatterColor += orangeSunset * mie * sunsetFactor;
     
-    gl_FragColor = vec4(atmosColor, intensity * shadow * atmosThickness);
+    // Atmosphere thickness over evolution
+    float thickness = mix(0.4, 1.3, smoothstep(0.0, 0.5, evolution));
+    
+    // Night side shadow
+    float shadow = smoothstep(-0.3, 0.3, dotNL);
+    
+    vec3 finalColor = mix(spaceBlack, scatterColor, shadow);
+    
+    gl_FragColor = vec4(finalColor, intensity * shadow * thickness);
   }
 `;
